@@ -45,10 +45,10 @@
 
   /* цели */
   #hudBtns{position:absolute;top:16px;right:16px;display:flex;gap:8px;pointer-events:auto}
-  #lvlBtn{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);pointer-events:auto;cursor:pointer;
+  #lvlBtn{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);pointer-events:auto;cursor:pointer;
     padding:10px 20px;border-radius:14px;font-size:12px;letter-spacing:.10em;text-transform:uppercase;
     color:#f6dfa4;background:rgba(58,46,22,.80);border:1px solid rgba(240,193,75,.42);
-    box-shadow:0 0 18px rgba(240,193,75,.16);animation:lvlPulse 2.1s ease-in-out infinite;user-select:none;z-index:6}
+    box-shadow:0 0 18px rgba(240,193,75,.16);animation:lvlPulse 2.1s ease-in-out infinite;user-select:none;z-index:8}
   #lvlBtn b{color:#ffd76a;font-weight:700;letter-spacing:.04em}
   #lvlBtn[hidden]{display:none}
   #lvlBtn:active{transform:translateX(-50%) scale(.95)}
@@ -293,7 +293,6 @@
     <div class="bar" style="height:6px"><i id="xpFill"></i></div>
     <div class="bar" id="enBar" hidden style="height:6px;max-width:220px"><i id="enFill" style="background:linear-gradient(90deg,#5cc8ff,#bfe9ff)"></i></div>
   </div>
-  <div id="lvlBtn" hidden><span id="lvlBtnT">Новый уровень</span> <b>×1</b></div>
   <div id="hudBtns">
     <button class="hudbtn" id="pauseBtn" title="Pause">❚❚</button>
     <button class="hudbtn" id="soundBtn" title="Sound">♪</button>
@@ -427,9 +426,9 @@
 .tcb{position:relative;--cd:1}
 .tcb::before{content:'';position:absolute;inset:-2px;border-radius:50%;pointer-events:none;
   background:conic-gradient(rgba(8,10,13,.74) calc((1 - var(--cd))*360deg), rgba(0,0,0,0) 0)}
-#tc.lean #tcBtns{right:12px;bottom:12px;gap:10px;grid-template-columns:repeat(2,70px)}
+#tc.lean #tcBtns{right:22px;bottom:20px;gap:16px;grid-template-columns:repeat(2,70px)}
 #tc.lean .tcb{width:70px;height:70px;font-size:21px}
-#tc.lean #tcAb1{width:84px;height:84px;margin:-7px -7px 0 0;font-size:25px}
+#tc.lean #tcAb1{width:80px;height:80px;margin:0;font-size:24px;justify-self:end}
 #tcDash{color:#8fd4ff;border-color:rgba(124,196,255,.34);background:rgba(20,32,44,.58)}
 #tcDash.hit{background:rgba(52,88,120,.75)}
 .tcb.dead{opacity:.28;pointer-events:none}
@@ -486,7 +485,7 @@ body.touch #bl{display:none}
   .step{font-size:9px;margin-bottom:4px}
   .grid{gap:8px}
   .opt{width:166px;padding-bottom:11px;border-radius:14px}
-  .opt .art{height:60px}
+  .opt .art{height:74px}
   .opt .bd{padding:9px 11px 0}
   .opt h3{font-size:13px}
   .opt .role{font-size:9px;margin-bottom:5px}
@@ -502,14 +501,15 @@ body.touch #bl{display:none}
   #objBox{top:40px;width:156px;max-height:62px;padding:6px 9px;font-size:10px}
   #objBox h4{font-size:8px;margin:0 0 3px}
   .obj{font-size:9.5px;margin-bottom:3px}
-  #tc.lean #tcBtns{right:10px;bottom:10px;gap:9px;grid-template-columns:repeat(2,62px)}
-  #tc.lean .tcb{width:62px;height:62px;font-size:19px}
-  #tc.lean #tcAb1{width:74px;height:74px;margin:-6px -6px 0 0;font-size:22px}
+  #tc.lean #tcBtns{right:18px;bottom:16px;gap:13px;grid-template-columns:repeat(2,60px)}
+  #tc.lean .tcb{width:60px;height:60px;font-size:18px}
+  #tc.lean #tcAb1{width:70px;height:70px;margin:0;font-size:21px;justify-self:end}
   #clock{font-size:16px}
   .bar{height:7px;width:min(190px,30vw)}
 }
 </style>
 <div id="rot" hidden><div><i></i><b></b><span></span></div></div>
+<div id="lvlBtn" hidden><span id="lvlBtnT">Новый уровень</span> <b>+1</b></div>
 <div id="tc" hidden>
   <div id="tcStick"><div id="tcRing"></div><div id="tcNub"></div></div>
   <div id="tcAim"><div id="tcARing"></div><div id="tcANub"></div></div>
@@ -543,11 +543,16 @@ function el(id){ const n=document.getElementById(id);
   if(!el._warned)el._warned={};
   if(!el._warned[id]){ el._warned[id]=1; console.warn('[DUSTLINE] нет элемента #'+id); }
   return NULLEL; }
-let VW=0,VH=0,DPR=1;
+let VW=0,VH=0,DPR=1,ZOOM=1;
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TAU=Math.PI*2, STEP=1/60;
-function resize(){ DPR=Math.min(devicePixelRatio||1,2); VW=innerWidth; VH=innerHeight;
-  cv.width=Math.floor(VW*DPR); cv.height=Math.floor(VH*DPR); }
+function resize(){
+  DPR=Math.min(devicePixelRatio||1,2);
+  /* чем ниже экран, тем дальше камера: иначе враг сверху и снизу появляется
+     уже вплотную и среагировать нельзя */
+  ZOOM=Math.max(.70,Math.min(1,innerHeight/640));
+  VW=innerWidth/ZOOM; VH=innerHeight/ZOOM;          /* размеры сцены в единицах мира */
+  cv.width=Math.floor(innerWidth*DPR); cv.height=Math.floor(innerHeight*DPR); }
 addEventListener('resize',resize); resize();
 /* вертикальная раскладка не поддерживается: просим повернуть и ставим бой на паузу */
 function rotSync(){
@@ -3048,7 +3053,7 @@ function initAir(){ AIR.length=0; for(let i=0;i<110;i++) AIR.push({x:vr(0,1),y:v
 
 const cam={x:0,y:0};
 function render(){
-  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.setTransform(DPR*ZOOM,0,0,DPR*ZOOM,0,0);
   if(!W){ ctx.fillStyle='#101216'; ctx.fillRect(0,0,VW,VH); return; }
   const B=BIOMES[W.biome],p=W.p,T=W.t,C=CLASSES[W.cls];
   /* камера едва заметно смещается к курсору и замирает в меню */
@@ -4507,11 +4512,11 @@ function drawThreatBar(p){
 function drawMinimap(p){
   const M=16;
   /* снизу справа: на мыши — кружки способностей, на сенсоре — кнопки под пальцем */
-  const BOT = TOUCH ? (innerHeight<400 ? 136 : 162) : 124;
+  const BOT = TOUCH ? (innerHeight<400 ? 170 : 205) : 124;
   let S2=Math.min(132, Math.round(Math.min(VH*.34, VW*.20)));
   let topLim=M+44;
   const ob=el('objBox');
-  if(ob && ob!==NULLEL){ const r=ob.getBoundingClientRect(); if(r.height>2) topLim=r.bottom+12; }
+  if(ob && ob!==NULLEL){ const r=ob.getBoundingClientRect(); if(r.height>2) topLim=r.bottom/ZOOM+12; }
   const room=VH-M-BOT-topLim;
   if(S2>room) S2=room;
   if(S2<58) return;                 /* места нет — лучше без карты, чем поверх целей */
@@ -4602,7 +4607,7 @@ function syncHud(){ if(!W)return; const p=W.p;
       && !el('lvlScreen').classList.contains('on') && !el('relicScreen').classList.contains('on');
     if(lb.hidden===want) lb.hidden=!want;
     if(want){ el('lvlBtnT').textContent=U('lvlReady');
-      lb.querySelector('b').textContent='×'+pendingLevels; }
+      lb.querySelector('b').textContent='+'+pendingLevels; }
   }
   const C=CLASSES[W.cls];
   const k1=clamp(1-p.ab1Cd/(p.ab1Max*mCool()),0,1), k2=clamp(1-p.ab2Cd/(p.ab2Max*mCool()),0,1);
@@ -5178,7 +5183,7 @@ addEventListener('blur',()=>{ for(const k in KEY)KEY[k]=false; LMB=RMB=false;
      &&!el('lvlScreen').classList.contains('on')&&!el('relicScreen').classList.contains('on')){
     paused=true; renderPause(); show('pauseScreen'); } });
 let MX=innerWidth/2,MY=innerHeight/2-80,LMB=false,RMB=false;
-addEventListener('mousemove',e=>{ MX=e.clientX; MY=e.clientY; });
+addEventListener('mousemove',e=>{ MX=e.clientX/ZOOM; MY=e.clientY/ZOOM; });
 addEventListener('mousedown',e=>{ if(!running)return; if(e.button===0)LMB=true; if(e.button===2)RMB=true; });
 addEventListener('mouseup',e=>{ if(e.button===0)LMB=false; if(e.button===2)RMB=false; });
 addEventListener('contextmenu',e=>e.preventDefault());
@@ -5226,10 +5231,11 @@ function tcInit(){
     nub.style.top  = (TC.oy + uy*vis)+'px';
     if(d < TC_DEAD){ TC.mx = 0; TC.my = 0; }
     else {
-      /* полная скорость уже на 80% радиуса, дальше не убывает */
-      const full = Math.max(TC_DEAD + 1, TC_R * .8);
+      /* полная скорость уже на 55% радиуса: упор на быстрое движение,
+         а медленное остаётся доступным у самого центра */
+      const full = Math.max(TC_DEAD + 1, TC_R * .55);
       const raw = Math.min(1, (d - TC_DEAD) / (full - TC_DEAD));
-      const m = Math.pow(raw, 1.2);
+      const m = Math.pow(raw, .8);
       TC.mx = ux*m; TC.my = uy*m;
     }
   });
@@ -5289,7 +5295,7 @@ function tcInit(){
       if(e.pointerId !== TC.rid) return;
       e.preventDefault();
       /* курсор сдвигается от текущего положения, а не прыгает под палец */
-      cursorMove((e.clientX - TC.rlx) * TC_CURS, (e.clientY - TC.rly) * TC_CURS);
+      cursorMove((e.clientX - TC.rlx) * TC_CURS / ZOOM, (e.clientY - TC.rly) * TC_CURS / ZOOM);
       TC.rlx = e.clientX; TC.rly = e.clientY;
     });
     const aup = ()=>{ TC.rid = -1; TC.rs = false; aim.classList.remove('on'); };
