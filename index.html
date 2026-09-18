@@ -361,7 +361,7 @@
 </div></div>
 
 <div class="screen" id="lvlScreen"><div class="wrap">
-  <div class="step"><span data-i18n="level">Уровень</span> <span id="lvlNum">2</span></div>
+  <div class="step"><span data-i18n="level">Уровень</span> <span id="lvlNum">2</span><span id="lvlLeft" style="color:var(--gold);margin-left:10px"></span></div>
   <h1 style="font-size:clamp(21px,3.4vw,30px)" data-i18n="upgrade">Модернизация</h1>
   <div class="sub"><span data-i18n="pickOne">Одно улучшение на выбор.</span>
     <span id="slotInfo" style="color:var(--gold);margin-left:10px"></span></div>
@@ -2986,6 +2986,11 @@ function drawCards(){ const pool=buildPool(),out=[];
     pendingLevels--; return false; }
   currentChoices=out;
   el('lvlNum').textContent=W.p.level; el('rerollN').textContent=W.p.rerolls;
+  { const ll=el('lvlLeft');
+    if(ll&&ll!==NULLEL){
+      /* текущий выбор тоже считаем: осталось = накопленные + этот */
+      const left=Math.max(1,pendingLevels+1);
+      ll.textContent = left>1 ? tt('· осталось выбрать: '+left, '· picks left: '+left) : ''; } }
   el('slotInfo').textContent=tt('Слоты: ','Slots: ')+slotsUsed()+' / '+slotMax();
   el('rerollBtn').disabled=W.p.rerolls<=0;
   el('cards').innerHTML=out.map((c,i)=>{
@@ -3750,7 +3755,7 @@ function render(){
       ctx.fillStyle=rg; ctx.fillRect(0,0,VW,VH); } }
 
   /* курсор: остаётся там, где его оставили, — по нему бьют способности */
-  if(TOUCH && W && W.p && !(TC.aimOn && TC.aimId >= 0) && !useCursor() && TC.rs && TC.rdir){
+  if(TOUCH && W && W.p && !TC.abHold && !useCursor() && TC.rs && TC.rdir){
     const px = W.p.x - cam.x + VW/2, py = W.p.y - cam.y + VH/2;
     const dl = Math.hypot(TC.rdx,TC.rdy)||1;
     ctx.save();
@@ -3760,7 +3765,7 @@ function render(){
     ctx.lineTo(px + TC.rdx/dl*230, py + TC.rdy/dl*230); ctx.stroke();
     ctx.restore();
   }
-  if(TOUCH && W && W.p && !(TC.aimOn && TC.aimId >= 0) && useCursor()){
+  if(TOUCH && W && W.p && !TC.abHold && useCursor()){
     const sx = TC.csx, sy = TC.csy;
     if(sx >= 0){
       const col = (CLASSES[W.cls]&&CLASSES[W.cls].color)||'#7cc4ff';
@@ -3784,7 +3789,7 @@ function render(){
 
   /* куда уйдёт турель или удар. Показываем с момента нажатия кнопки,
      а не только после сдвига пальца — иначе непонятно, куда целишься. */
-  if(TOUCH && TC.aimId >= 0 && W && W.p){
+  if(TOUCH && TC.abHold && W && W.p){
     const ax = TC.aimOn ? W.p.x + TC.aimDX : INPUT.ax;
     const ay = TC.aimOn ? W.p.y + TC.aimDY : INPUT.ay;
     const sx = ax - cam.x + VW/2, sy = ay - cam.y + VH/2;
@@ -5221,7 +5226,7 @@ function startRun(){
   el('n1').textContent=L(ABILITIES[W.ab1.id].name); el('n2').textContent=L(ABILITIES[W.ab2.id].name);
   el('clsPill').innerHTML=`<span style="color:${C.color}">◆</span> ${L(C.name)}`;
   el('hud').hidden=false; el('hint').hidden=false;
-  try{ cursorInit(true); }catch(e){}
+  try{ cursorInit(true); TC.lastAng=null; }catch(e){}
   show(null); renderLoadout(); renderObjectives(); syncHud();
   musicStart(W.biome);
   toast(L(MISSIONS.find(m=>m.id===selMis).name).toUpperCase());
@@ -5322,7 +5327,7 @@ let TOUCH = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window
           || (navigator.maxTouchPoints||0) > 0;
 let tcReady = false;
 const TC = {on:false,id:-1,ox:0,oy:0,mx:0,my:0,ab1:false,ab2:false,dash:false,
-            aimId:-1,aimOx:0,aimOy:0,aimOn:false,aimDX:0,aimDY:0,
+            aimId:-1,aimOx:0,aimOy:0,aimOn:false,aimDX:0,aimDY:0,abHold:false,lastAng:null,
             rid:-1,rlx:0,rly:0,rox:0,roy:0,rdx:0,rdy:0,rs:false,rdir:false,csx:-1,csy:-1,
             holdT:0,fire1:-1e9,fire2:-1e9};
 let TC_R = 58, TC_DEAD = 9;
@@ -5384,7 +5389,7 @@ function tcInit(){
       e.preventDefault(); audioInit();
       TC[key] = true; n.classList.add('hit'); done = false;
       if(slot){ TC.aimId = e.pointerId; TC.aimOx = e.clientX; TC.aimOy = e.clientY;
-                TC.aimOn = false; TC.aimDX = 0; TC.aimDY = 0; }
+                TC.aimOn = false; TC.aimDX = 0; TC.aimDY = 0; TC.abHold = true; }
       try{ n.setPointerCapture(e.pointerId); }catch(err){}
     });
     n.addEventListener('pointermove', e=>{
@@ -5404,7 +5409,7 @@ function tcInit(){
         if(fire){ TC[slot === 'ab1' ? 'fire1' : 'fire2'] = performance.now();
                   TC.holdT = performance.now(); }
         else { TC.aimOn = false; }
-        TC.aimId = -1;
+        TC.aimId = -1; TC.abHold = false;
       }
     };
     n.addEventListener('pointerup', ()=>finish(true));
@@ -5553,14 +5558,20 @@ function pollInput(){
     }
     if(KEY[' ']) INPUT.dash = true;
     if(W && W.p){
-      const aiming = TC.aimOn && (TC.aimId >= 0 || now - TC.holdT < TC_FIRE);
+      const aiming = TC.aimOn && (TC.abHold || now - TC.holdT < TC_FIRE);
       if(aiming){ INPUT.ax = W.p.x + TC.aimDX; INPUT.ay = W.p.y + TC.aimDY; }
       else if(useCursor()){
         cursorInit(false);
         INPUT.ax = TC.csx - VW/2 + cam.x;
         INPUT.ay = TC.csy - VH/2 + cam.y;
       }
-      else if(TC.rs && TC.rdir){ INPUT.ax = W.p.x + TC.rdx; INPUT.ay = W.p.y + TC.rdy; }
+      else if(TC.rs && TC.rdir){
+        TC.lastAng = Math.atan2(TC.rdy, TC.rdx);          /* запоминаем направление */
+        INPUT.ax = W.p.x + TC.rdx; INPUT.ay = W.p.y + TC.rdy; }
+      else if(TC.lastAng !== null){
+        /* палец отпущен — прицел смотрит туда же, а не за направлением бега */
+        INPUT.ax = W.p.x + Math.cos(TC.lastAng)*420;
+        INPUT.ay = W.p.y + Math.sin(TC.lastAng)*420; }
       else if(OPT.aimAssist){ autoAim(); INPUT.ax = AIMX; INPUT.ay = AIMY; }
       else {
         const mm = Math.hypot(INPUT.mx, INPUT.my);
