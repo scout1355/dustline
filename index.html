@@ -408,7 +408,7 @@
   background:radial-gradient(circle,rgba(124,196,255,.10),rgba(124,196,255,0) 70%)}
 #tcANub{width:56px;height:56px;margin:-28px 0 0 -28px;background:rgba(124,196,255,.30);
   border:2px solid rgba(124,196,255,.55)}
-/* кольцо правой зоны больше не нужно: там теперь курсор */
+#tcAim.on #tcARing,#tcAim.on #tcANub{opacity:1}
 #tcRing{position:fixed;width:132px;height:132px;margin:-66px 0 0 -66px;border-radius:50%;
   border:2px solid rgba(221,226,234,.22);background:rgba(20,23,28,.30);opacity:0;
   transition:opacity .14s;pointer-events:none}
@@ -424,6 +424,11 @@
   width:76px;height:76px}
 .tcb.hit{transform:scale(.9);background:rgba(80,90,105,.75)}
 .tcb{position:relative;--cd:1}
+.tcb .cnt{position:absolute;right:-3px;top:-3px;min-width:23px;height:23px;padding:0 5px;
+  border-radius:12px;background:rgba(10,12,16,.92);border:1.5px solid rgba(255,217,74,.75);
+  color:#ffd94a;font-size:12px;font-weight:700;display:grid;place-items:center;
+  line-height:1;pointer-events:none;z-index:2}
+.tcb .cnt.zero{color:#8b93a1;border-color:rgba(139,147,161,.5)}
 .tcb::before{content:'';position:absolute;inset:-2px;border-radius:50%;pointer-events:none;
   background:conic-gradient(rgba(8,10,13,.74) calc((1 - var(--cd))*360deg), rgba(0,0,0,0) 0)}
 #tc.lean #tcBtns{right:34px;bottom:22px;gap:18px;grid-template-columns:repeat(2,76px)}
@@ -713,7 +718,7 @@ const S={ shot:()=>tone(430,.05,'triangle',.05,250), mg:()=>{nz(.05,.06,2600);to
   beam:()=>tone(920,.05,'sine',.028,720), boom:()=>{nz(.34,.22,700);tone(70,.3,'sine',.16,32);},
   thud:()=>nz(.14,.12,500), hit:()=>tone(200,.03,'triangle',.04,140), pick:()=>tone(880,.05,'sine',.05,1250),
   lvl:()=>{tone(440,.12,'sine',.12);setTimeout(()=>tone(660,.12,'sine',.12),100);setTimeout(()=>tone(880,.2,'sine',.12),200);},
-  hurt:()=>{nz(.2,.2,900);tone(120,.18,'sawtooth',.1,55);}, build:()=>{tone(300,.07,'square',.07);setTimeout(()=>tone(480,.09,'square',.06),70);},
+  hurt:()=>{ S.ouch(); }, build:()=>{tone(300,.07,'square',.07);setTimeout(()=>tone(480,.09,'square',.06),70);},
   spore:()=>{nz(.3,.1,420);tone(160,.28,'sine',.08,90);}, zap:()=>tone(1400,.06,'sawtooth',.05,320),
   blink:()=>tone(200,.16,'sine',.09,1400), ready:()=>tone(700,.1,'sine',.07,1000),
   win:()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.24,'sine',.13),i*130));},
@@ -730,7 +735,17 @@ const S={ shot:()=>tone(430,.05,'triangle',.05,250), mg:()=>{nz(.05,.06,2600);to
   gurgle:()=>{ tone(140,.26,'sine',.07,72); setTimeout(()=>tone(190,.18,'sine',.05,110),90); },
   lash:()=>{ nz(.11,.07,1300); tone(300,.1,'triangle',.05,140); },
   acid:()=>{ nz(.22,.06,900); tone(210,.2,'sine',.05,120); },
-  thrall:()=>{ tone(120,.34,'sine',.09,240); setTimeout(()=>tone(300,.2,'triangle',.06,180),110); } };
+  thrall:()=>{ tone(120,.34,'sine',.09,240); setTimeout(()=>tone(300,.2,'triangle',.06,180),110); },
+  /* мягкий перелив в момент получения уровня — не мешает бою, но заметен */
+  lvlUp:()=>{ tone(784,.10,'sine',.085,1400); setTimeout(()=>tone(1046,.12,'sine',.075,1600),80);
+              setTimeout(()=>tone(1318,.20,'sine',.055,1800),170); },
+  /* урон по герою: глухой удар по корпусу с коротким металлическим призвуком */
+  ouch:()=>{ tone(96,.20,'sine',.16,48); nz(.10,.13,380);
+             setTimeout(()=>tone(196,.09,'triangle',.05,150),35); },
+  /* лопнувшая слизь */
+  burst:()=>{ tone(150,.14,'sine',.10,80); nz(.16,.09,460);
+              setTimeout(()=>tone(95,.18,'sine',.06,60),60); },
+  crunch:()=>{ nz(.09,.11,1100); tone(210,.07,'square',.05,120); } };
 
 /* ============================================================ КЛАССЫ */
 const CLASSES={
@@ -1213,7 +1228,7 @@ frag:{name:['Осколочный залп','Frag Launcher'],glyph:'✸',cls:'th
 sidearm:{name:['Лёгкая автопушка','Light Autogun'],glyph:'⁚',cls:'builder',max:5,col:'#ffd94a',
  desc:l=>tt(`Собственный огонь: урон ${9+l*5}, ${1+Math.floor(l/3)} пул(и). Основную работу всё же делают постройки.`,
             `Personal fire: ${9+l*5} damage, ${1+Math.floor(l/3)} rounds. Your buildings still do the heavy lifting.`),
- init:w=>{w.cd=0;}, tick(w,dt,lv){ w.cd-=dt; if(w.cd>0)return; w.cd=(.26-lv*.025)*mRate();
+ init:w=>{w.cd=0;}, tick(w,dt,lv){ w.cd-=dt; if(w.cd>0)return; w.cd=(.40-lv*.030)*mRate();
   const n=1+Math.floor(lv/3), c=tierC(lv,5,'#c8e86a','#ff6a3c');
   for(let i=0;i<n;i++){ const a=W.p.ang+rr(-.06,.06)+(i-(n-1)/2)*.09;
     proj({x:W.p.x,y:W.p.y,vx:Math.cos(a)*640,vy:Math.sin(a)*640,dmg:(9+lv*5)*mDmg(),r:3.4+lv*.35,life:1,
@@ -1586,7 +1601,7 @@ const ABILITIES={
  ram:{max:5,col:'#ff7a45',info:['Рывок насквозь с горящим следом; проходит стены.','A charge that burns a trail and passes through walls.'],desc:l=>tt(`Урон ${60+l*24} при таране, след ${12+l*5}/сек, длина рывка растёт.`,`${60+l*24} impact damage, trail ${12+l*5}/s, longer charge each level.`),name:['Броневой таран','Armoured Ram'],glyph:'➤',cd:12,use(){
    const k=1+W.pas.power*.22+W.p.level*.035;
    W.p.ram={t:.24+.10*k,a:W.p.ang,hit:[],k}; W.p.ifr=Math.max(W.p.ifr,.6); S.ram(); shake(8); return true; }},
- place:{col:'#ffd94a',info:['Ставит турель под курсором. Наведитесь на готовую — сменится её тип.','Deploys a turret at the cursor; hover to switch type.'],desc:l=>tt('ЛКМ ставит турель под курсором; при заполненном лимите снимается самая старая.','Deploys a turret at the cursor.'),name:['Развернуть турель','Deploy Turret'],glyph:'⌾',cd:3.2,use(){
+ place:{col:'#ffd94a',info:['Ставит турель под курсором. Наведитесь на готовую — сменится её тип.','Deploys a turret at the cursor; hover to switch type.'],desc:l=>tt('ЛКМ ставит турель под курсором; при заполненном лимите снимается самая старая.','Deploys a turret at the cursor.'),name:['Развернуть турель','Deploy Turret'],glyph:'⌗',cd:3.2,use(){
    const h=hoveredBuild('turret');
    if(h){ h.ti=nextUnlocked('turret',h.ti); W.lastTi=h.ti; applyTurret(h); h.unfold=.35; S.build();
      toast(U('turretSel')+' — '+L(TURRET_TYPES[h.ti].name)); return 'quick'; }
@@ -1597,7 +1612,7 @@ const ABILITIES={
    W.pods.push({sx:W.p.x,sy:W.p.y,x:W.p.x,y:W.p.y,tx:W.p.x+Math.cos(a)*d,ty:W.p.y+Math.sin(a)*d,
      t:0,dur:Math.max(.22,d/620),kind:'turret',ti:tiNext,life:40});
    S.deploy(); return true; }},
- anchor:{col:'#ffd94a',info:['Ставит опорный модуль. Наведитесь на готовый — сменится его аура.','Deploys a support anchor with an aura.'],desc:l=>tt('ПКМ ставит опорный модуль; при заполненном лимите снимается самый старый.','Deploys a support anchor.'),name:['Опорный модуль','Support Anchor'],glyph:'⬡',cd:9,use(){
+ anchor:{col:'#ffd94a',info:['Ставит опорный модуль. Наведитесь на готовый — сменится его аура.','Deploys a support anchor with an aura.'],desc:l=>tt('ПКМ ставит опорный модуль; при заполненном лимите снимается самый старый.','Deploys a support anchor.'),name:['Опорный модуль','Support Anchor'],glyph:'⌸',cd:9,use(){
    const h=hoveredBuild('anchor');
    if(h){ h.ai=nextUnlocked('anchor',h.ai); h.unfold=.4; W.lastAi=h.ai; S.build();
      toast(U('anchorSel')+' — '+L(ANCHOR_TYPES[h.ai].name)); return 'quick'; }
@@ -2690,6 +2705,14 @@ function update(dt){
     W.enemies.splice(i,1);
     if(e.converted){ ACHST.converts++; fx.burst(e.x,e.y,'#c86bff',14,150); continue; }
     if(e.silent){ continue; }
+    /* мягкие враги лопаются, бронированные хрустят; редко, чтобы не забивало бой */
+    if(e.boss||e.elite) S.burst();
+    else if(gate('death',110)){
+      const soft={crawler:1,bloater:1,brood:1,spitter:1,wyrm:1,arachne:1};
+      if(soft[e.type]) (rng()<.5?S.burst:S.squelch)();
+      else if(e.type==='armored'||e.type==='siege'||e.type==='juggernaut') S.crunch();
+      else if(rng()<.5) S.wet();
+    }
     W.kills++; ACHST.kills++; addGoal('kill',1);
     fx.blood(e.x,e.y,e.blood||'#b03030',e.boss?26:(e.elite?18:8));
     /* остаётся тело: поле боя постепенно заполняется следами работы */
@@ -2786,7 +2809,7 @@ function hurtPlayer(d){ const p=W.p; if(p.ifr>0)return;
 function gainXp(n,silent){ const p=W.p; p.xp+=n; if(!silent)S.pick();
   while(p.xp>=p.xpNext){ p.xp-=p.xpNext; p.level++;
     p.xpNext=Math.round(6+p.level*3.4+Math.pow(p.level,1.44));
-    if(p.level%5===0)p.rerolls++; pendingLevels++; } }
+    if(p.level%5===0)p.rerolls++; pendingLevels++; S.lvlUp(); } }
 
 /* ======================================================= ПРОКАЧКА UI */
 let pendingLevels=0,pendingRelic=0,currentChoices=[];
@@ -3759,26 +3782,34 @@ function render(){
     }
   }
 
-  /* куда уйдёт турель или удар — видно, пока палец ведёт по экрану */
-  if(TOUCH && TC.aimOn && TC.aimId >= 0 && W && W.p){
-    const ax = W.p.x + TC.aimDX, ay = W.p.y + TC.aimDY;
+  /* куда уйдёт турель или удар. Показываем с момента нажатия кнопки,
+     а не только после сдвига пальца — иначе непонятно, куда целишься. */
+  if(TOUCH && TC.aimId >= 0 && W && W.p){
+    const ax = TC.aimOn ? W.p.x + TC.aimDX : INPUT.ax;
+    const ay = TC.aimOn ? W.p.y + TC.aimDY : INPUT.ay;
     const sx = ax - cam.x + VW/2, sy = ay - cam.y + VH/2;
     const px = W.p.x - cam.x + VW/2, py = W.p.y - cam.y + VH/2;
     const col = (CLASSES[W.cls]&&CLASSES[W.cls].color)||'#dde2ea';
     let over = false;
     for(const b of (W.builds||[])) if(Math.hypot(b.x-ax,b.y-ay) < b.r+18){ over = true; break; }
-    const rr2 = over ? 23 : 15;
+    const rr2 = over ? 30 : 22;
     ctx.save();
-    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = .55;
-    ctx.setLineDash([8,8]);
+    ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.globalAlpha = .75;
+    ctx.setLineDash([9,8]);
     ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(sx,sy); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.globalAlpha = .18; ctx.fillStyle = col;
+    ctx.globalAlpha = .22; ctx.fillStyle = col;
     ctx.beginPath(); ctx.arc(sx,sy,rr2,0,TAU); ctx.fill();
-    ctx.globalAlpha = .9;
+    ctx.globalAlpha = 1; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(sx,sy,rr2,0,TAU); ctx.stroke();
-    if(over){ ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.arc(sx,sy,rr2+6,0,TAU); ctx.stroke(); }
+    /* перекрестие в центре — точка попадания видна даже на пёстром фоне */
+    ctx.lineWidth = 2;
+    for(const [ax2,ay2] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      ctx.beginPath(); ctx.moveTo(sx+ax2*6,sy+ay2*6);
+      ctx.lineTo(sx+ax2*(rr2-4),sy+ay2*(rr2-4)); ctx.stroke(); }
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(sx,sy,2.6,0,TAU); ctx.fill();
+    if(over){ ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(sx,sy,rr2+8,0,TAU); ctx.stroke(); }
     ctx.restore();
   }
 
@@ -3972,25 +4003,59 @@ function drawBuild(b,T){
   if(b.kind==='turret'){
     const TT=TURRET_TYPES[b.ti];
     ctx.lineCap='round';
-    for(let i=0;i<3;i++){ const a=b.ph+i*TAU/3;
-      const ex=b.x+Math.cos(a)*b.r*1.5*u, ey=b.y+Math.sin(a)*b.r*1.5*u;
-      ctx.strokeStyle=OL; ctx.lineWidth=7.4;
+    /* опора выдаёт тип с первого взгляда: ракетная стоит на четырёх широких
+       лапах, тесла на трёх тонких, лазерная на длинных, автопушка на обычных */
+    const LEGN = TT.id==='rocket' ? 4 : 3;
+    const LEGL = TT.id==='tesla' ? 1.22 : (TT.id==='laser' ? 1.72 : (TT.id==='rocket' ? 1.62 : 1.45));
+    const LEGW = TT.id==='tesla' ? 3.2 : (TT.id==='rocket' ? 5.4 : 4.4);
+    for(let i=0;i<LEGN;i++){ const a=b.ph+i*TAU/LEGN;
+      const ex=b.x+Math.cos(a)*b.r*LEGL*u, ey=b.y+Math.sin(a)*b.r*LEGL*u;
+      ctx.strokeStyle=OL; ctx.lineWidth=LEGW+3;
       ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(ex,ey); ctx.stroke();
-      ctx.strokeStyle='#4a4a3e'; ctx.lineWidth=4.4;
-      ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(ex,ey); ctx.stroke(); }
+      ctx.strokeStyle='#4a4a3e'; ctx.lineWidth=LEGW;
+      ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(ex,ey); ctx.stroke();
+      if(TT.id!=='tesla'){ ctx.fillStyle='#3a3a32';
+        ctx.beginPath(); ctx.arc(ex,ey,LEGW*.8,0,TAU); ctx.fill(); } }
     ctx.lineCap='butt';
     circle(b.x,b.y,b.r*(.4+u*.6)); outline(2.6); ctx.fillStyle='#3a3a32'; ctx.fill();
     circle(b.x,b.y,b.r*.72*u); ctx.fillStyle='#565646'; ctx.fill();
     if(u>.6){ ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.ang);
       const k=(u-.6)/.4;
-      const barrel=(x,y,w,h,r2)=>{ ctx.beginPath(); ctx.roundRect(x,y,w,h,r2);
-        ctx.fillStyle='#6a6a54'; ctx.fill(); };
-      if(TT.id==='rocket'){ for(const sd of [-1,1]) barrel(0,sd*5.5-3.5,(b.r+9)*k,7,3.5); }
-      else if(TT.id==='tesla') barrel(-3,-3,(b.r*.6)*k+4,6,3);
-      else if(TT.id==='flak') barrel(0,-6,(b.r+7)*k,12,6);
-      else barrel(0,-4.5,(b.r+13)*k,9,4.5);
-      ctx.beginPath(); ctx.roundRect((b.r+4)*k,-3,6*k+1,6,3);
-      ctx.fillStyle=TT.col; ctx.fill();
+      const barrel=(x,y,w,h,r2,col)=>{ ctx.beginPath(); ctx.roundRect(x,y,w,h,r2);
+        ctx.fillStyle=col||'#6a6a54'; ctx.fill(); };
+      if(TT.id==='rocket'){
+        /* короб с пусковыми трубами вместо стволов */
+        barrel(-3,-10,(b.r+6)*k+4,20,3);
+        ctx.fillStyle='#231f1a';
+        for(const sd of [-6,0,6]) barrel((b.r+2)*k,sd-2.6,5,5.2,2.6,'#231f1a');
+        barrel((b.r+7)*k,-10,3,20,1.5,TT.col);
+      }
+      else if(TT.id==='tesla'){
+        /* катушка: короткий столб и два кольца, стволов нет вовсе */
+        barrel(-4,-4,(b.r*.42)*k+7,8,4);
+        ctx.strokeStyle=TT.col; ctx.lineWidth=2.2;
+        for(const rr3 of [5.4,9.2]){ ctx.beginPath();
+          ctx.arc((b.r*.42)*k+4,0,rr3,0,TAU); ctx.stroke(); }
+        ctx.fillStyle=TT.col; ctx.beginPath();
+        ctx.arc((b.r*.42)*k+4,0,2.6,0,TAU); ctx.fill();
+      }
+      else if(TT.id==='laser'){
+        /* тонкий излучатель, фокусирующее кольцо посередине, линза на конце */
+        barrel(0,-3,(b.r+16)*k,6,3);
+        barrel((b.r*.5)*k,-6.5,5,13,2.5,'#8a8a6e');
+        ctx.fillStyle=TT.col; ctx.beginPath();
+        ctx.arc((b.r+16)*k,0,4.4,0,TAU); ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,.7)'; ctx.beginPath();
+        ctx.arc((b.r+16)*k-1,-1,1.6,0,TAU); ctx.fill();
+      }
+      else if(TT.id==='flak'){ barrel(0,-6,(b.r+7)*k,12,6);
+        barrel((b.r+4)*k,-3,6*k+1,6,3,TT.col); }
+      else {
+        /* автопушка: спарка коротких стволов и короб магазина сверху */
+        for(const sd of [-3.8,3.8]) barrel(0,sd-2,(b.r+9)*k,4,2);
+        barrel(-7,-7.5,12,15,2.5,'#565646');
+        barrel((b.r+6)*k,-4,4,8,2,TT.col);
+      }
       ctx.restore(); }
     circle(b.x,b.y,b.r*.32*u); ctx.fillStyle=TT.col; ctx.fill();
     ctx.fillStyle='rgba(255,255,255,.55)'; circle(b.x-b.r*.1,b.y-b.r*.12,b.r*.13*u); ctx.fill();
@@ -4665,6 +4730,21 @@ function syncHud(){ if(!W)return; const p=W.p;
   el('c1').textContent=p.ab1Cd>.15?Math.ceil(p.ab1Cd):'';
   el('c2').textContent=p.ab2Cd>.15?Math.ceil(p.ab2Cd):'';
   if(TOUCH){ const a1=el('tcAb1'), a2=el('tcAb2'), ad=el('tcDash');
+    /* свободные места под постройки: лимит минус стоящие на поле.
+       Лимит уже учитывает улучшения, а снятые и истекшие постройки
+       пропадают из W.builds, поэтому счётчик всегда честный. */
+    for(const [n,slot] of [[a1,'ab1'],[a2,'ab2']]){
+      if(!n||n===NULLEL) continue;
+      const A=W[slot], id=A&&A.id;
+      const kind = id==='place' ? 'turret' : (id==='anchor' ? 'anchor' : null);
+      let tag=n.querySelector('.cnt');
+      if(!kind){ if(tag) tag.remove(); continue; }
+      let used=0; for(const b of W.builds) if(b.kind===kind) used++;
+      const left=Math.max(0,buildLimit(kind)-used);
+      if(!tag){ tag=document.createElement('div'); tag.className='cnt'; n.appendChild(tag); }
+      if(tag.textContent!==String(left)) tag.textContent=String(left);
+      tag.classList.toggle('zero', left===0);
+    }
     /* пассивная способность на кнопку не вешается — гасим её */
     for(const [n,slot] of [[a1,'ab1'],[a2,'ab2']]){
       if(!n||n===NULLEL) continue;
@@ -5312,7 +5392,7 @@ function tcInit(){
       e.preventDefault();
       let dx = e.clientX - TC.aimOx, dy = e.clientY - TC.aimOy;
       if(Math.hypot(dx,dy) < TC_AIMDEAD){ TC.aimOn = false; return; }
-      dx *= TC_AIMK; dy *= TC_AIMK;
+      dx *= TC_AIMK / ZOOM; dy *= TC_AIMK / ZOOM;
       const d = Math.hypot(dx,dy);
       if(d > TC_AIMMAX){ dx = dx/d*TC_AIMMAX; dy = dy/d*TC_AIMMAX; }
       TC.aimOn = true; TC.aimDX = dx; TC.aimDY = dy;
@@ -5338,7 +5418,12 @@ function tcInit(){
       e.preventDefault(); audioInit();
       TC.rid = e.pointerId; TC.rlx = e.clientX; TC.rly = e.clientY;
       TC.rox = e.clientX; TC.roy = e.clientY; TC.rs = true; TC.rdir = false;
-      aim.classList.add('on');
+      /* героям с направленным прицелом показываем кольцо, как у левого джойстика */
+      if(!useCursor()){
+        aring.style.left = anub.style.left = TC.rox+'px';
+        aring.style.top  = anub.style.top  = TC.roy+'px';
+        aim.classList.add('on');
+      }
       try{ aim.setPointerCapture(e.pointerId); }catch(err){}
     });
     aim.addEventListener('pointermove', e=>{
@@ -5351,6 +5436,11 @@ function tcInit(){
       const ddx = e.clientX - TC.rox, ddy = e.clientY - TC.roy;
       const dd = Math.hypot(ddx, ddy);
       if(dd >= TC_DEAD){ TC.rdir = true; TC.rdx = ddx/dd*420; TC.rdy = ddy/dd*420; }
+      if(!useCursor()){
+        const uvx = dd>.001?ddx/dd:0, uvy = dd>.001?ddy/dd:0, vis2 = Math.min(dd,TC_R);
+        anub.style.left = (TC.rox + uvx*vis2)+'px';
+        anub.style.top  = (TC.roy + uvy*vis2)+'px';
+      }
     });
     const aup = ()=>{ TC.rid = -1; TC.rs = false; aim.classList.remove('on'); };
     aim.addEventListener('pointerup', aup);
