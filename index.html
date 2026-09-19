@@ -134,7 +134,7 @@
   .badge{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.5);border-radius:999px;padding:3px 9px;font-size:10px;color:var(--gold)}
 
   #lvlHead{position:relative;display:flex;align-items:baseline;justify-content:center;padding:0 26px}
-  #lvlHead .step{position:absolute;left:26px;bottom:4px;margin:0}
+  #lvlHead .step{position:absolute;left:26px;bottom:4px;margin:0;transition:left .12s}
   #lvlHead h1{margin:0}
   #slotInfo{color:#9d7bff;letter-spacing:.06em}
   @media (max-width:620px){ #lvlHead .step{position:static;margin:0 0 4px}
@@ -890,7 +890,7 @@ function newWorld(cls,mid,seed){
        xp:0,level:1,xpNext:6,rerolls:1,ab1Cd:0,ab2Cd:0,ab1Max:1,ab2Max:1,energy:100,energyMax:100,
        vx:0,vy:0,lean:0,walk:0},
     weapons:{},pas:{power:0,rate:0,speed:0,hull:0,magnet:0,regen:0,armor:0,area:0,cool:0},
-    enemies:[],allies:[],bullets:[],ebullets:[],shards:[],pools:[],builds:[],orbs:[],zones:[],
+    enemies:[],allies:[],bullets:[],ebullets:[],shards:[],pools:[],builds:[],orbs:[],zones:[],helpers:[],
     obstacles:[],fences:[],chains:[],beams:[],mines:[],nests:[],crates:[],props:[],hold:null,beacon:null,minePts:[],
     pat:'stream',patT:0,patAng:0,safeAng:rr(0,TAU),safeArc:.72,safeShift:12,packType:null,ambush:null,picks:[],beat:0,tut:0,dmgOut:0,dmgIn:0,cores:[],tps:[],rcrates:[],carry:0,haulT:12,press:0,meds:[],surge:0,surgeT:8,spiders:[],relicDrops:[],bots:[],pods:[],walls:[],baseTurrets:[],aura:{dmg:1,rate:1,speed:1,def:1},auto:true,
     eliteN:0,eliteT:50,eliteLeft:(M.elite||0),relicDropped:false,
@@ -1232,14 +1232,38 @@ frag:{name:['Осколочный залп','Frag Launcher'],glyph:'✸',cls:'th
   proj({x:W.p.x,y:W.p.y,vx:Math.cos(a)*340,vy:Math.sin(a)*340,dmg:(10+lv*6)*mDmg(),r:7,life:.8,
     col:'#fff2d0',edge:c,frag:{n:5+lv*3,dmg:(9+lv*5)*mDmg(),col:c},drag:.97}); S.shot(); }},
 
-sidearm:{name:['Лёгкая автопушка','Light Autogun'],glyph:'⁚',cls:'builder',max:5,col:'#ffd94a',
- desc:l=>tt(`Собственный огонь: урон ${9+l*5}, ${1+Math.floor(l/3)} пул(и). Основную работу всё же делают постройки.`,
-            `Personal fire: ${9+l*5} damage, ${1+Math.floor(l/3)} rounds. Your buildings still do the heavy lifting.`),
- init:w=>{w.cd=0;}, tick(w,dt,lv){ w.cd-=dt; if(w.cd>0)return; w.cd=(.40-lv*.030)*mRate();
-  const n=1+Math.floor(lv/3), c=tierC(lv,5,'#c8e86a','#ff6a3c');
-  for(let i=0;i<n;i++){ const a=W.p.ang+rr(-.06,.06)+(i-(n-1)/2)*.09;
-    proj({x:W.p.x,y:W.p.y,vx:Math.cos(a)*640,vy:Math.sin(a)*640,dmg:(9+lv*5)*mDmg(),r:3.4+lv*.35,life:1,
-      range:400+lv*30,col:'#ffffff',edge:c,tracer:1}); } S.shot(); }},
+sidearm:{name:['Боевые помощники','Combat Helpers'],glyph:'⁚',cls:'builder',max:5,col:'#ffd94a',
+ desc:l=>tt(`Помощники бьют по ${10+l*7} урона. Их столько, сколько свободных мест под турели и модули.`,
+            `Helpers deal ${10+l*7} damage each. Their number equals your free turret and anchor slots.`),
+ init:w=>{w.cd=0;},
+ tick(w,dt,lv){
+  /* Число помощников равно свободным местам: поставил турель — помощник ушёл
+     в неё, снял или она истекла — вернулся. Это и счётчик, и огневая поддержка. */
+  let ut=0, ua=0;
+  for(const b of W.builds){ if(b.kind==='turret')ut++; else if(b.kind==='anchor')ua++; }
+  const freeT=Math.max(0,buildLimit('turret')-ut), freeA=Math.max(0,buildLimit('anchor')-ua);
+  const need=freeT+freeA;
+  W.helpers=W.helpers||[];
+  while(W.helpers.length<need) W.helpers.push({ph:rr(0,TAU),cd:rr(0,.6),kind:'turret'});
+  while(W.helpers.length>need) W.helpers.pop();
+  for(let i=0;i<W.helpers.length;i++) W.helpers[i].kind = i<freeT ? 'turret' : 'anchor';
+
+  const R=W.p.r*2.1+16, dmg=(10+lv*7)*mDmg(), gap=(.85-lv*.07)*mRate();
+  for(let i=0;i<W.helpers.length;i++){
+    const hp2=W.helpers[i];
+    const a=T*1.15+i*TAU/Math.max(1,W.helpers.length)+hp2.ph*.001;
+    hp2.x=W.p.x+Math.cos(a)*R; hp2.y=W.p.y+Math.sin(a)*R*.9;
+    if(!(W.auto||W.aimHold))continue;
+    hp2.cd-=dt; if(hp2.cd>0)continue;
+    const e=nearest(hp2.x,hp2.y,380); if(!e)continue;
+    hp2.cd=gap;
+    const sa=Math.atan2(e.y-hp2.y,e.x-hp2.x);
+    const col=hp2.kind==='turret'?'#ffd94a':'#8fb8ff';
+    proj({x:hp2.x,y:hp2.y,vx:Math.cos(sa)*760,vy:Math.sin(sa)*760,dmg,r:2.6,life:1,
+      range:400+lv*30,col:'#ffffff',edge:col,tracer:1,len:.022,w:.8});
+    fx.muzzle(hp2.x,hp2.y,sa,col);
+    if(rng()<.35)S.shot();
+  } }},
 turretkit:{name:['Оружейный комплект','Turret Kit'],glyph:'⌾',cls:'builder',max:5,col:'#ffd94a',
  desc:l=>tt(`+${l} турел(и) к лимиту, урон всех турелей +${l*18}%, срок службы +${l*4} с.`,
             `+${l} turret slots, all turret damage +${l*18}%, lifetime +${l*4} s.`),
@@ -1347,7 +1371,7 @@ const TURRET_TYPES=[
         'Air-bursts at range and catches everything near the target. For swarms and small fry.']}
 ];
 const ANCHOR_TYPES=[
- {id:'power', name:['Усилитель','Amplifier'],  col:'#ff7a45',glyph:'✦',
+ {id:'power', name:['Усилитель','Amplifier'],  col:'#ff7a45',glyph:'▲',
   desc:['+35% урона всему в радиусе','+35% damage to everything in range']},
  {id:'guard', name:['Щитовой','Bulwark'],      col:'#8fb8ff',glyph:'▣',
   desc:['−35% входящего урона внутри','−35% incoming damage inside']},
@@ -1606,7 +1630,7 @@ const ABILITIES={
  ram:{max:5,col:'#ff7a45',info:['Рывок насквозь с горящим следом; проходит стены.','A charge that burns a trail and passes through walls.'],desc:l=>tt(`Урон ${60+l*24} при таране, след ${12+l*5}/сек, длина рывка растёт.`,`${60+l*24} impact damage, trail ${12+l*5}/s, longer charge each level.`),name:['Броневой таран','Armoured Ram'],glyph:'➤',cd:12,use(){
    const k=1+W.pas.power*.22+W.p.level*.035;
    W.p.ram={t:.24+.10*k,a:W.p.ang,hit:[],k}; W.p.ifr=Math.max(W.p.ifr,.6); S.ram(); shake(8); return true; }},
- place:{col:'#ffd94a',info:['Ставит турель под курсором. Наведитесь на готовую — сменится её тип.','Deploys a turret at the cursor; hover to switch type.'],desc:l=>tt('ЛКМ ставит турель под курсором; при заполненном лимите снимается самая старая.','Deploys a turret at the cursor.'),name:['Развернуть турель','Deploy Turret'],glyph:'♜',cd:3.2,use(){
+ place:{col:'#ffd94a',info:['Ставит турель под курсором. Наведитесь на готовую — сменится её тип.','Deploys a turret at the cursor; hover to switch type.'],desc:l=>tt('ЛКМ ставит турель под курсором; при заполненном лимите снимается самая старая.','Deploys a turret at the cursor.'),name:['Развернуть турель','Deploy Turret'],glyph:'⌦',cd:3.2,use(){
    const h=hoveredBuild('turret');
    if(h){ h.ti=nextUnlocked('turret',h.ti); W.lastTi=h.ti; applyTurret(h); h.unfold=.35; S.build();
      toast(U('turretSel')+' — '+L(TURRET_TYPES[h.ti].name)); return 'quick'; }
@@ -1617,7 +1641,7 @@ const ABILITIES={
    W.pods.push({sx:W.p.x,sy:W.p.y,x:W.p.x,y:W.p.y,tx:W.p.x+Math.cos(a)*d,ty:W.p.y+Math.sin(a)*d,
      t:0,dur:Math.max(.22,d/620),kind:'turret',ti:tiNext,life:40});
    S.deploy(); return true; }},
- anchor:{col:'#ffd94a',info:['Ставит опорный модуль. Наведитесь на готовый — сменится его аура.','Deploys a support anchor with an aura.'],desc:l=>tt('ПКМ ставит опорный модуль; при заполненном лимите снимается самый старый.','Deploys a support anchor.'),name:['Опорный модуль','Support Anchor'],glyph:'▣',cd:9,use(){
+ anchor:{col:'#ffd94a',info:['Ставит опорный модуль. Наведитесь на готовый — сменится его аура.','Deploys a support anchor with an aura.'],desc:l=>tt('ПКМ ставит опорный модуль; при заполненном лимите снимается самый старый.','Deploys a support anchor.'),name:['Опорный модуль','Support Anchor'],glyph:'✥',cd:9,use(){
    const h=hoveredBuild('anchor');
    if(h){ h.ai=nextUnlocked('anchor',h.ai); h.unfold=.4; W.lastAi=h.ai; S.build();
      toast(U('anchorSel')+' — '+L(ANCHOR_TYPES[h.ai].name)); return 'quick'; }
@@ -1830,8 +1854,10 @@ const fx={
  echo(x,y,c){ FXE.push({x,y,t:0,life:.3,col:c}); },
  /* брызги по направлению удара: летят за врага, а не во все стороны */
  spray(x,y,a,c,n){ if(!OPT.blood)return; n=QUAL?Math.ceil(n/2):n;
-  for(let i=0;i<n;i++){ const sa=a+vr(-.55,.55), sp=vr(70,260);
-   FXB.push({x,y,vx:Math.cos(sa)*sp,vy:Math.sin(sa)*sp,t:0,life:vr(.18,.42),col:c,r:vr(1.1,2.8)}); } },
+  for(let i=0;i<n;i++){ const sa=a+vr(-.5,.5), sp=vr(190,470);
+   /* стартуют уже за телом и летят по инерции, а не гаснут на месте */
+   FXB.push({x:x+Math.cos(sa)*vr(4,11), y:y+Math.sin(sa)*vr(4,11),
+     vx:Math.cos(sa)*sp, vy:Math.sin(sa)*sp, t:0, life:vr(.3,.6), col:c, r:vr(1.1,3)}); } },
  /* всплывающая надпись над героем */
  note(x,y,txt,c){ FXN.push({x,y,txt,col:c||'#ffd94a',t:0,life:.7}); },
  blood(x,y,c,n){ if(!OPT.blood)return; n=QUAL?Math.ceil(n/2):n;
@@ -1842,7 +1868,7 @@ const fx={
    const drops=[];
    for(let k=0;k<vr(1,4)|0;k++)
      drops.push({dx:vr(-1,1)*rad*2.1,dy:vr(-1,1)*rad*1.6,r:vr(.9,2.4)});
-   DEC.push({x:x+vr(-6,6),y:y+vr(-6,6),r:rad,col:c,t:0,life:vr(9.5,10.5),
+   DEC.push({x:x+vr(-6,6),y:y+vr(-6,6),r:rad,col:c,t:0,life:vr(5.5,6.5),
      seed,squash:vr(.72,.95),rot:vr(0,TAU),drops}); } }
 };
 function spiderLv(){ const w=W.weapons.infect; return w?w.lv:0; }
@@ -2018,7 +2044,7 @@ function update(dt){
   for(const id in W.weapons){ const wd=WEAPONS[id];
     const fire = W.auto || W.aimHold;
     if(!fire&&wd.cls!=='builder'&&id!=='medic'&&id!=='orbit')continue;
-    if(!fire&&(id==='sidearm'||id==='seismic'||id==='medic'))continue;
+    if(!fire&&(id==='seismic'||id==='medic'))continue;
     wd.tick(W.weapons[id],dt,W.weapons[id].lv); }
 
   /* элиты по расписанию задания */
@@ -3051,7 +3077,14 @@ function drawCards(){ const pool=buildPool(),out=[];
     if(lt&&lt!==NULLEL){
       /* число в скобках — сколько улучшений предстоит выбрать вместе с этим */
       const left=Math.max(1,pendingLevels+1);
-      lt.textContent = U('upgrade') + (left>1 ? ' ('+left+')' : ''); } }
+      lt.textContent = U('upgrade') + (left>1 ? ' ('+left+')' : ''); }
+    /* равняем «Уровень» по левому краю первой карточки */
+    requestAnimationFrame(()=>{ try{
+      const st=el('lvlStep'), hd=el('lvlHead'), c0=document.querySelector('#cards .card');
+      if(st&&hd&&c0&&st!==NULLEL){
+        const dx=c0.getBoundingClientRect().left-hd.getBoundingClientRect().left;
+        if(dx>0) st.style.left=Math.round(dx)+'px';
+      } }catch(e){} }); }
   el('slotInfo').textContent=tt('Слоты: ','Slots: ')+slotsUsed()+' / '+slotMax();
   el('rerollBtn').disabled=W.p.rerolls<=0;
   el('cards').innerHTML=out.map((c,i)=>{
@@ -3204,9 +3237,20 @@ function render(){
     ctx.globalAlpha=k*.26;
     splatPath(0,0,cp2.r*1.75*(1+clamp(cp2.t/cp2.life,0,1)*.2),cp2.ph+2,.68); ctx.fill();
     ctx.restore();
-    ctx.globalAlpha=k*.75; ctx.fillStyle=cp2.col;
+    ctx.globalAlpha=k*.78; ctx.fillStyle=cp2.col;
     ctx.save(); ctx.translate(cp2.x,cp2.y); ctx.rotate(cp2.dir); ctx.scale(1,.55);
-    blobPath(0,0,cp2.r*.9*sink,0,cp2.ph+1,.16); ctx.fill();
+    /* тело разорвано: крупный кусок и пара мелких рядом, а не ровный овал */
+    blobPath(0,0,cp2.r*.72*sink,0,cp2.ph+1,.30); ctx.fill();
+    const parts=[[cp2.r*1.05,cp2.r*.35,.34],[-cp2.r*.95,-cp2.r*.28,.28],[cp2.r*.25,-cp2.r*.95,.22]];
+    for(let q=0;q<parts.length;q++){ const pt=parts[q];
+      ctx.globalAlpha=k*(.70-q*.10);
+      blobPath(pt[0],pt[1],cp2.r*pt[2]*sink,0,cp2.ph+q*2.1,.38); ctx.fill(); }
+    /* торчащие лапы у любого трупа, не только у крупного */
+    ctx.globalAlpha=k*.55; ctx.strokeStyle=cp2.col; ctx.lineWidth=2.1; ctx.lineCap='round';
+    for(let q=0;q<4;q++){ const a5=cp2.ph+q*1.7+.4;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a5)*cp2.r*.5,Math.sin(a5)*cp2.r*.5);
+      ctx.lineTo(Math.cos(a5)*cp2.r*1.35,Math.sin(a5)*cp2.r*1.25+cp2.r*.2); ctx.stroke(); }
+    ctx.lineCap='butt';
     if(cp2.big){ ctx.globalAlpha=k*.5; ctx.strokeStyle=cp2.col; ctx.lineWidth=3; ctx.lineCap='round';
       for(let i=0;i<5;i++){ const a=cp2.ph+i*1.3;
         ctx.beginPath(); ctx.moveTo(0,0);
@@ -3222,9 +3266,8 @@ function render(){
     ctx.save(); ctx.translate(dq.x,dq.y); ctx.rotate(dq.rot||0);
     /* растекается и подсыхает: пятно чуть растёт и темнеет к краю */
     const grow=1+clamp(dq.t/dq.life,0,1)*.28;
-    ctx.globalAlpha=k*.30; ctx.fillStyle=dq.col;
-    splatPath(0,0,dq.r*grow*1.18,(dq.seed||0)+1.4,dq.squash); ctx.fill();
-    ctx.globalAlpha=k*.5;
+    /* один слой вместо двух наложенных овалов: меньше работы и чище вид */
+    ctx.globalAlpha=k*.46; ctx.fillStyle=dq.col;
     splatPath(0,0,dq.r*grow,dq.seed||0,dq.squash); ctx.fill();
     if(dq.drops){ for(const d2 of dq.drops){
       ctx.globalAlpha=k*.42;
@@ -3558,7 +3601,18 @@ function render(){
         ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a3)*b.r*1.5,Math.sin(a3)*b.r*1.5); ctx.stroke(); }
       ctx.restore(); continue; }
     softGlow(b.x,b.y,b.r*3.4,b.glow||'rgba(224,110,80,.55)',.55);
-    ctx.fillStyle=b.col||'#c9563f'; blobPath(b.x,b.y,b.r,T*2,b.ph,.18); ctx.fill();
+    { const sp=Math.hypot(b.vx,b.vy)||1, a4=Math.atan2(b.vy,b.vx);
+      ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(a4);
+      /* хвост тянется назад, голова каплей — читается как плевок */
+      ctx.globalAlpha=.42; ctx.fillStyle=b.col||'#c9563f';
+      ctx.beginPath(); ctx.moveTo(-b.r*2.6,0);
+      ctx.quadraticCurveTo(-b.r*.9,-b.r*.75,b.r*.4,0);
+      ctx.quadraticCurveTo(-b.r*.9,b.r*.75,-b.r*2.6,0); ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.ellipse(0,0,b.r*1.35,b.r*.78,0,0,TAU); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.35)';
+      ctx.beginPath(); ctx.ellipse(b.r*.35,-b.r*.24,b.r*.42,b.r*.24,0,0,TAU); ctx.fill();
+      ctx.restore(); }
     ctx.fillStyle='rgba(255,255,255,.75)'; circle(b.x-b.r*.2,b.y-b.r*.2,b.r*.36); ctx.fill(); }
 
   /* орбитальные искры: короткий дуговой след */
@@ -3577,6 +3631,22 @@ function render(){
   ctx.globalAlpha=1;
 
   /* боевой спутник Зодчего */
+  /* помощники Зодчего: сколько их — столько ещё можно поставить построек */
+  if(W.helpers&&W.helpers.length&&W.cls==='builder'){
+    for(const hp3 of W.helpers){
+      if(hp3.x===undefined)continue;
+      const col=hp3.kind==='turret'?'#ffd94a':'#8fb8ff';
+      softGlow(hp3.x,hp3.y,20,hp3.kind==='turret'?'rgba(255,217,74,.45)':'rgba(143,184,255,.45)',.5);
+      ctx.fillStyle='#33322a';
+      ctx.beginPath(); ctx.roundRect(hp3.x-6,hp3.y-6,12,12,4); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.lineWidth=1.6; ctx.stroke();
+      ctx.fillStyle=col;
+      ctx.beginPath(); ctx.roundRect(hp3.x-3.2,hp3.y-3.2,6.4,6.4,2.2); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.55)';
+      ctx.beginPath(); ctx.roundRect(hp3.x-2.6,hp3.y-2.6,2.4,2.4,1); ctx.fill();
+    }
+  }
+
   if(W.drone&&W.cls==='builder'){
     const dr=W.drone;
     softGlow(dr.x,dr.y,26,'rgba(255,217,74,.55)',.5);
@@ -4528,11 +4598,7 @@ function drawHero(p,T,C){
     ctx.fillStyle=C.accent; circle(-r*.14,-r*.06,r*.2); ctx.fill();
   }
   else if(W.cls==='builder'){
-    // парящие модули
-    for(let i=0;i<3;i++){ const a=T*1.1+i*TAU/3, d=r*1.55;
-      const mx=Math.cos(a)*d, my=Math.sin(a)*d*.85;
-      ctx.fillStyle='#3c3a2c'; ctx.beginPath(); ctx.roundRect(mx-5.5,my-5.5,11,11,4); ctx.fill();
-      ctx.fillStyle=C.color; ctx.beginPath(); ctx.roundRect(mx-3,my-3,6,6,2.5); ctx.fill(); }
+    /* помощники рисуются отдельно, здесь только корпус */
     ctx.fillStyle='#33322a'; circle(0,0,r*1); ctx.fill();
     ctx.fillStyle='#4d4b3c'; circle(0,0,r*.82); ctx.fill();
     // радиальные секции
@@ -4543,11 +4609,7 @@ function drawHero(p,T,C){
     const pu=.5+Math.sin(T*2.6)*.5;
     ctx.fillStyle=C.color; circle(0,0,r*(.36+pu*.05)); ctx.fill();
     ctx.fillStyle='#fff8d0'; circle(-r*.06,-r*.08,r*.15); ctx.fill();
-    // манипулятор к прицелу
-    ctx.rotate(p.ang);
-    ctx.strokeStyle='#5d5a48'; ctx.lineWidth=r*.3; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(r*.4,0); ctx.lineTo(r*1.2,0); ctx.stroke(); ctx.lineCap='butt';
-    ctx.fillStyle=C.color; circle(r*1.3,0,r*.19); ctx.fill();
+    /* манипулятор убран: за огонь теперь отвечают помощники вокруг корпуса */
   }
   else { /* spore */
     // жгуты тянутся против движения
@@ -5422,7 +5484,10 @@ addEventListener('blur',()=>{ for(const k in KEY)KEY[k]=false; LMB=RMB=false;
     paused=true; renderPause(); show('pauseScreen'); } });
 let MX=innerWidth/2,MY=innerHeight/2-80,LMB=false,RMB=false;
 addEventListener('mousemove',e=>{ MX=e.clientX/ZOOM; MY=e.clientY/ZOOM; });
-addEventListener('mousedown',e=>{ if(!running)return; if(e.button===0)LMB=true; if(e.button===2)RMB=true; });
+addEventListener('mousedown',e=>{ if(!running)return;
+  /* нажатие по элементам интерфейса не должно уходить в игру как выстрел */
+  if(e.target&&e.target.closest&&e.target.closest('#lvlBtn,#hudBtns,.screen,#tc')) return;
+  if(e.button===0)LMB=true; if(e.button===2)RMB=true; });
 addEventListener('mouseup',e=>{ if(e.button===0)LMB=false; if(e.button===2)RMB=false; });
 addEventListener('contextmenu',e=>e.preventDefault());
 
@@ -5513,7 +5578,20 @@ function tcInit(){
       if(slot){
         if(fire){ TC[slot === 'ab1' ? 'fire1' : 'fire2'] = performance.now();
                   TC.holdT = performance.now(); }
-        else { TC.aimOn = false; }
+        /* Прицел остаётся там, куда навели способность. Раньше он возвращался
+           к прежней позиции курсора, и получался рывок. */
+        if(TC.aimOn && W && W.p){
+          if(useCursor()){
+            TC.csx = (W.p.x + TC.aimDX) - cam.x + VW/2;
+            TC.csy = (W.p.y + TC.aimDY) - cam.y + VH/2;
+            const m2 = 26;
+            TC.csx = clamp(TC.csx, m2, Math.max(m2, VW - m2));
+            TC.csy = clamp(TC.csy, m2, Math.max(m2, VH - m2));
+          } else {
+            TC.lastAng = Math.atan2(TC.aimDY, TC.aimDX);
+          }
+        }
+        if(!fire) TC.aimOn = false;
         TC.aimId = -1; TC.abHold = false;
       }
     };
