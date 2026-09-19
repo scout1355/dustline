@@ -1251,7 +1251,7 @@ sidearm:{name:['Боевые помощники','Combat Helpers'],glyph:'⁚',c
   const R=W.p.r*2.1+16, dmg=(10+lv*7)*mDmg(), gap=(.85-lv*.07)*mRate();
   for(let i=0;i<W.helpers.length;i++){
     const hp2=W.helpers[i];
-    const a=T*1.15+i*TAU/Math.max(1,W.helpers.length)+hp2.ph*.001;
+    const a=W.t*1.15+i*TAU/Math.max(1,W.helpers.length)+hp2.ph*.001;
     hp2.x=W.p.x+Math.cos(a)*R; hp2.y=W.p.y+Math.sin(a)*R*.9;
     if(!(W.auto||W.aimHold))continue;
     hp2.cd-=dt; if(hp2.cd>0)continue;
