@@ -1630,7 +1630,7 @@ const ABILITIES={
  ram:{max:5,col:'#ff7a45',info:['Рывок насквозь с горящим следом; проходит стены.','A charge that burns a trail and passes through walls.'],desc:l=>tt(`Урон ${60+l*24} при таране, след ${12+l*5}/сек, длина рывка растёт.`,`${60+l*24} impact damage, trail ${12+l*5}/s, longer charge each level.`),name:['Броневой таран','Armoured Ram'],glyph:'➤',cd:12,use(){
    const k=1+W.pas.power*.22+W.p.level*.035;
    W.p.ram={t:.24+.10*k,a:W.p.ang,hit:[],k}; W.p.ifr=Math.max(W.p.ifr,.6); S.ram(); shake(8); return true; }},
- place:{col:'#ffd94a',info:['Ставит турель под курсором. Наведитесь на готовую — сменится её тип.','Deploys a turret at the cursor; hover to switch type.'],desc:l=>tt('ЛКМ ставит турель под курсором; при заполненном лимите снимается самая старая.','Deploys a turret at the cursor.'),name:['Развернуть турель','Deploy Turret'],glyph:'⌦',cd:3.2,use(){
+ place:{col:'#ffd94a',info:['Ставит турель под курсором. Наведитесь на готовую — сменится её тип.','Deploys a turret at the cursor; hover to switch type.'],desc:l=>tt('ЛКМ ставит турель под курсором; при заполненном лимите снимается самая старая.','Deploys a turret at the cursor.'),name:['Развернуть турель','Deploy Turret'],glyph:'⌦',icon:'turret',cd:3.2,use(){
    const h=hoveredBuild('turret');
    if(h){ h.ti=nextUnlocked('turret',h.ti); W.lastTi=h.ti; applyTurret(h); h.unfold=.35; S.build();
      toast(U('turretSel')+' — '+L(TURRET_TYPES[h.ti].name)); return 'quick'; }
@@ -1641,7 +1641,7 @@ const ABILITIES={
    W.pods.push({sx:W.p.x,sy:W.p.y,x:W.p.x,y:W.p.y,tx:W.p.x+Math.cos(a)*d,ty:W.p.y+Math.sin(a)*d,
      t:0,dur:Math.max(.22,d/620),kind:'turret',ti:tiNext,life:40});
    S.deploy(); return true; }},
- anchor:{col:'#ffd94a',info:['Ставит опорный модуль. Наведитесь на готовый — сменится его аура.','Deploys a support anchor with an aura.'],desc:l=>tt('ПКМ ставит опорный модуль; при заполненном лимите снимается самый старый.','Deploys a support anchor.'),name:['Опорный модуль','Support Anchor'],glyph:'✥',cd:9,use(){
+ anchor:{col:'#ffd94a',info:['Ставит опорный модуль. Наведитесь на готовый — сменится его аура.','Deploys a support anchor with an aura.'],desc:l=>tt('ПКМ ставит опорный модуль; при заполненном лимите снимается самый старый.','Deploys a support anchor.'),name:['Опорный модуль','Support Anchor'],glyph:'✥',icon:'anchor',cd:9,use(){
    const h=hoveredBuild('anchor');
    if(h){ h.ai=nextUnlocked('anchor',h.ai); h.unfold=.4; W.lastAi=h.ai; S.build();
      toast(U('anchorSel')+' — '+L(ANCHOR_TYPES[h.ai].name)); return 'quick'; }
@@ -1752,6 +1752,25 @@ function spawnBoss(){ const a=rr(0,TAU),d=Math.max(VW,VH)*.62+150;
   S.boom(); shake(16); toast(U('bossIn')); }
 function spawnRing(type,x,y,mul){ spawnE(type,clamp(x,40,W.size-40),clamp(y,40,W.size-40),mul); }
 const BARRIERS=[];
+/* Символами из шрифта форму турели не передать, поэтому рисуем иконки сами.
+   Возвращает готовую разметку: либо svg, либо обычный символ. */
+const AB_ICONS={
+ turret:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" '+
+   'stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:block">'+
+   '<path d="M10.4 4.2v2.1"/><circle cx="10.4" cy="12.4" r="6.4"/><circle cx="10.4" cy="12.4" r="2.8"/>'+
+   '<rect x="13.4" y="9.5" width="8.2" height="2.3" rx="0.6"/>'+
+   '<rect x="13.4" y="13.4" width="8.2" height="2.3" rx="0.6"/>'+
+   '<path d="M5.4 17.6l-1.8 1.8 1.4 1.4 1.8-1.8"/>'+
+   '<path d="M15.4 17.6l1.8 1.8-1.4 1.4-1.8-1.8"/></svg>',
+ anchor:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" '+
+   'stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:block">'+
+   '<path d="M12 3.2l3.1 1.8v3.6L12 10.4 8.9 8.6V5z"/>'+
+   '<path d="M20.2 8.9v3.6L17.1 14.3 14 12.5V8.9l3.1-1.8z"/>'+
+   '<path d="M10 12.5v3.6L6.9 17.9 3.8 16.1v-3.6L6.9 10.7z"/>'+
+   '<circle cx="12" cy="17.4" r="2.6"/></svg>'
+};
+function abIcon(d){ return (d&&d.icon&&AB_ICONS[d.icon])||((d&&d.glyph)||''); }
+
 function poolFor(){
   const pool=poolByTime();
   /* у вводных заданий свой короткий список: игрок знакомится с типами по очереди */
@@ -3092,7 +3111,7 @@ function drawCards(){ const pool=buildPool(),out=[];
     let dots=''; for(let k=1;k<=c.def.max;k++) dots+=`<i class="${k<=c.lv?'f':''}"></i>`;
     return `<div class="card" tabindex="0" data-i="${i}" style="color:${col}">
       <div class="rar"></div><div class="top"><div class="halo"></div>
-      <div class="em" style="color:${col}">${c.def.glyph}</div></div>
+      <div class="em" style="color:${col}">${abIcon(c.def)}</div></div>
       <div class="dots">${dots}</div>
       <div class="kind">${L(c.kind)}</div><h3>${L(c.def.name)}</h3>
       <div class="lvl" style="color:${col}">${c.isNew?tt('Новое','New'):tt('Уровень ','Level ')+c.lv}</div>
@@ -4921,7 +4940,8 @@ function syncHud(){ if(!W)return; const p=W.p;
       if(!n||n===NULLEL) continue;
       const A=W[slot], dd=A&&ABILITIES[A.id];
       n.classList.toggle('dead', !!(dd&&dd.passive));
-      if(dd&&dd.glyph&&n.textContent!==dd.glyph) n.textContent=dd.glyph;
+      { const ic=abIcon(dd); if(dd&&n.dataset.ic!==ic){ n.dataset.ic=ic;
+          const tag=n.querySelector('.cnt'); n.innerHTML=ic; if(tag) n.appendChild(tag); } }
     }
     const kd=clamp(1-p.dashCd/2.6,0,1);
     if(a1&&a1!==NULLEL) a1.style.setProperty('--cd',k1.toFixed(3));
@@ -5176,7 +5196,7 @@ function renderAbils(){
     return `<div class="abcard ${slot?'sel':''}" data-id="${id}" style="color:${col}" tabindex="0">
       ${slot?`<div class="slot"><span>${abLabel(slot)}</span></div>`:''}
       <div class="hd">
-        <div class="em">${d.glyph}</div>
+        <div class="em">${abIcon(d)}</div>
         <div class="nm"><h4>${L(d.name)}</h4><div class="tp ${cls}">${tpt}</div></div>
         <div class="inf" data-info="1">i</div>
       </div>
@@ -5388,7 +5408,7 @@ function startRun(){
   FXP.length=0; FXR.length=0; FXF.length=0; FXM.length=0; FXE.length=0; FXB.length=0; DEC.length=0; FXS.length=0; CORPSE.length=0; FXN.length=0;
   cam.x=W.p.x; cam.y=W.p.y;
   const C=CLASSES[selCls];
-  el('g1').textContent=ABILITIES[W.ab1.id].glyph; el('g2').textContent=ABILITIES[W.ab2.id].glyph;
+  el('g1').innerHTML=abIcon(ABILITIES[W.ab1.id]); el('g2').innerHTML=abIcon(ABILITIES[W.ab2.id]);
   el('n1').textContent=L(ABILITIES[W.ab1.id].name); el('n2').textContent=L(ABILITIES[W.ab2.id].name);
   el('clsPill').innerHTML=`<span style="color:${C.color}">◆</span> ${L(C.name)}`;
   el('hud').hidden=false; el('hint').hidden=false;
