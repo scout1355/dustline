@@ -56,7 +56,7 @@
   #infoPop span{display:block;font-size:12.5px;line-height:1.6;color:var(--dim)}
   #infoVeil{position:fixed;inset:0;z-index:39;background:rgba(6,8,11,.55)}
   #infoVeil[hidden]{display:none}
-  #lvlBtn{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);pointer-events:auto;cursor:pointer;
+  #lvlBtn{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);pointer-events:auto;cursor:pointer;
     padding:10px 20px;border-radius:14px;font-size:12px;letter-spacing:.10em;text-transform:uppercase;
     color:#f6dfa4;background:rgba(58,46,22,.80);border:1px solid rgba(240,193,75,.42);
     box-shadow:0 0 18px rgba(240,193,75,.16);animation:lvlPulse 2.1s ease-in-out infinite;user-select:none;z-index:8}
@@ -136,6 +136,8 @@
   .opt .bd{padding:14px 17px 0}
   .opt h3{margin:0 0 2px;font-size:16px;color:#fff;font-weight:650}
   .opt .role{font-size:11px;color:currentColor;margin-bottom:9px;opacity:.92}
+  .opt .pts{font-size:10.5px;color:var(--gold);margin:-5px 0 8px;letter-spacing:.04em}
+  .opt .pts b{color:#ffe9b0}
   .opt p{margin:0 0 9px;font-size:12px;line-height:1.6;color:var(--dim)}
   .opt ul{margin:0;padding-left:15px;font-size:11px;color:var(--dim);line-height:1.7}
   .opt ul b{color:var(--ink);font-weight:600}
@@ -493,7 +495,9 @@ body.touch #bl{display:none}
   .hudbtn{width:32px;height:32px;border-radius:10px;font-size:12px}
   #objBox{top:58px;right:26px;width:172px;padding:7px 10px;border-radius:13px}
   #objBox h4{margin:0 0 5px;font-size:9px}
-  #objBox{pointer-events:auto;cursor:pointer}
+  #objBox{pointer-events:auto;cursor:pointer;padding-bottom:12px}
+  #objBox h4{pointer-events:none}
+  #objBox .obj{pointer-events:none}
   #objBox.min .obj{display:none}
   #objBox.min .obj.first{display:flex}
   #objBox.min h4::after{content:' ▾';opacity:.6}
@@ -519,6 +523,7 @@ body.touch #bl{display:none}
   .opt .bd{padding:9px 11px 0}
   .opt h3{font-size:13px}
   .opt .role{font-size:9px;margin-bottom:5px}
+  .opt .pts{font-size:9px;margin:-3px 0 5px}
   .opt p{font-size:10px;line-height:1.4;margin-bottom:5px}
   .opt ul{font-size:9px;line-height:1.45;padding-left:12px}
   #cards{gap:8px}
@@ -636,8 +641,8 @@ const UI={
  allDone:['Все задания пройдены','All missions cleared'],
  unlockedM:['Открыто задание: ','Unlocked: '],
  relicTitle:['Трофейный модуль','Salvaged Relic'],
- relicSub:['Уникальная модернизация. Сохраняется во всех следующих заданиях (для текущего героя).','A unique upgrade. It carries over into every following mission (for this hull).'],
- relicHave:['Трофеи','Relics'],
+ relicSub:['Уникальная модернизация. Сохраняется во всех следующих заданиях (для текущего корпуса).','A unique upgrade. It carries over into every following mission (for this hull).'],
+ relicHave:['Трофеи','Relics'], pts:['Очки','Points'], ptsGain:['Очки за задание','Mission points'],
  xpN:['опыт','xp'], densN:['плотность','density'],
  autoOn:['АВТООГОНЬ ВКЛЮЧЁН','AUTOFIRE ON'], autoOff:['АВТООГОНЬ ВЫКЛЮЧЕН','AUTOFIRE OFF'],
  sndOn:['ЗВУК ВКЛЮЧЁН','SOUND ON'], sndOff:['ЗВУК ВЫКЛЮЧЕН','SOUND OFF'],
@@ -1165,7 +1170,7 @@ beam:{name:['Фазовый луч','Phase Beam'],glyph:'⌁',cls:'vector',max:5
  desc:l=>tt(`Непрерывный луч: ${Math.round(34+l*20)} урона в секунду, держит ${l} цел(и). С уровнем толстеет и краснеет.`,
             `Continuous beam: ${Math.round(34+l*20)} damage per second, holds ${l} targets. Thickens and reddens as it levels.`),
  init:w=>{w.hot=0;w.len=0;}, tick(w,dt,lv){
-  const F=(W.weapons.focus&&W.focus)?W.focus:null;
+  const F=W.focus||null;   /* фокусировка — способность, а не оружие: её нет в W.weapons */
   const range=(340+lv*54)*mArea(), dps=(34+lv*20)*mDmg()*(F?F.dmg:1);
   const chg=F?clamp(F.c/F.cap,0,1):0;
   const col=mix(tierC(lv,5,'#5cc8ff','#ff3c2e'),'#ff2e2e',chg*.55);
@@ -1187,7 +1192,7 @@ beam:{name:['Фазовый луч','Phase Beam'],glyph:'⌁',cls:'vector',max:5
     const t=((co.x-W.p.x)*Math.cos(a)+(co.y-W.p.y)*Math.sin(a)); if(t<0||t>range)continue;
     const px=W.p.x+Math.cos(a)*t,py=W.p.y+Math.sin(a)*t;
     if(Math.hypot(co.x-px,co.y-py)<co.r+4){
-      co.chg=Math.min(co.chgMax,co.chg+co.chgMax/8*dt);   /* полный заряд за 8 с */
+      co.chg=Math.min(co.chgMax,co.chg+co.chgMax/5.3*dt); /* полный заряд примерно за 5 с */
       if(t<end){end=t;hitPt={x:px,y:py};} } }
   w.len=lerp(w.len||range,end,.4);
   W.beams.push({kind:'ray',x1:W.p.x,y1:W.p.y,a,len:w.len,w:(2.6+lv*1.7)*(F?F.w:1),
@@ -1764,15 +1769,26 @@ const ELITES={
 };
 const ELITE_ORDER=['warden','ravager','weaver','bulwark'];
 function spawnE(type,x,y,mul){ const t=ETYPES[type],B=BIOMES[W.biome];
-  const s=(1+W.t/54)*B.hp*(mul||1);
-  W.enemies.push({type,x,y,r:t.r,hp:t.hp*s,hpMax:t.hp*s,sp:t.sp*(1+Math.min(W.t/400,.58)),
-    dmg:t.dmg*(1+W.t/320),xp:t.xp,form:t.form,col:t.col,dark:t.dark,eye:t.eye,blood:t.blood,
+  /* После десятой минуты каждые полторы минуты приходит следующая ступень:
+     враги крепче, быстрее и всё чаще попадаются элитные. */
+  const tier=lateTier();
+  const s=(1+W.t/54)*B.hp*(mul||1)*(1+tier*.22);
+  W.enemies.push({type,x,y,r:t.r,hp:t.hp*s,hpMax:t.hp*s,sp:t.sp*(1+Math.min(W.t/400,.58))*(1+tier*.04),
+    dmg:t.dmg*(1+W.t/320)*(1+tier*.13),xp:Math.round(t.xp*(1+tier*.2)),form:t.form,col:t.col,dark:t.dark,eye:t.eye,blood:t.blood,
     armor:(t.armor||0)*(1+W.t/600),
     cd:rr(.6,2.6),flash:0,hitCd:0,ph:rr(0,TAU),walk:rr(0,TAU),dir:0,dead:false,boss:false,
     ai:rr(0,2.2),mode:'direct',fs:rng()<.5?-1:1,lurch:t.lurch?1:0,lt:rr(.2,.9),lp:false,
     pers:rpick(['rush','rush','flank','flank','skirm','lurk']),
     orbit:rr(150,270),dashT:0,dashDur:.9,dashCd:rr(2,6),hist:null,
-    spread:rr(-1,1),hop:0,steer:t.r>22?4.2:7.5}); }
+    spread:rr(-1,1),hop:0,steer:t.r>22?4.2:7.5});
+  if(tier>0 && rng() < Math.min(.45, tier*.06)){
+    const e=W.enemies[W.enemies.length-1];
+    e.elite=true; e.hp*=2.1; e.hpMax*=2.1; e.dmg*=1.35; e.r*=1.16;
+    e.xp=Math.round(e.xp*2.2); e.armor=(e.armor||0)+tier*.4;
+  } }
+/* ступень позднего боя: 0 до десятой минуты, дальше +1 каждые 90 секунд */
+function lateTier(){ return W.t<600 ? 0 : Math.min(8, 1+Math.floor((W.t-600)/90)); }
+
 function spawnElite(){
   const M=MISSIONS.find(m=>m.id===W.mid);
   const idx=Math.min(ELITE_ORDER.length-1, W.eliteN + (M.endless?ri(0,1):0));
@@ -1824,13 +1840,25 @@ function poolFor(){
   return pool;
 }
 function poolByTime(){
-  const pool=['crawler'];
+  const late=W.t;
+  const pool=[];
+  /* после пятой минуты мелочь встречается всё реже, после восьмой исчезает */
+  if(late<300) pool.push('crawler','crawler');
+  else if(late<480) pool.push('crawler');
+  if(late>=420){ pool.push('hulk','armored'); }
+  if(late>=540){ pool.push('siege','juggernaut'); }
   if(W.t>28)pool.push('sprinter'); if(W.t>55)pool.push('stalker');
   if(W.t>66)pool.push('bloater'); if(W.t>85)pool.push('wyrm');
   if(W.t>100)pool.push('spitter'); if(W.t>135)pool.push('hulk','crawler');
   if(W.t>160)pool.push('arachne'); if(W.t>185)pool.push('brood');
   if(W.t>230)pool.push('armored'); if(W.t>300)pool.push('siege','armored');
   if(W.t>370)pool.push('juggernaut');
+  if(late>=300){                      /* убираем самых мелких из набора */
+    const weak={crawler:1,sprinter:1};
+    const f2=pool.filter(t=>!weak[t]||late<480);
+    if(f2.length) return f2;
+  }
+  if(!pool.length) pool.push('stalker');
   return pool;
 }
 /* волна выбирает манеру: ровный поток, стая с одной стороны, клещи, окружение или засада */
@@ -1860,6 +1888,10 @@ function waves(dt){
         spawnRing(rpick(pool),am.x+Math.cos(a)*d,am.y+Math.sin(a)*d,.9); }
       fx.shock(am.x,am.y,90,'#e0605e'); S.boom(); shake(6); }
   }
+  { const tr=lateTier();
+    if(tr>(W.lastTier||0)){ W.lastTier=tr;
+      toast(tt('ПРОТИВНИК УСИЛЕН · СТУПЕНЬ '+tr,'ENEMY REINFORCED · TIER '+tr));
+      S.thud(); shake(4); } }
   W.safeAng=(W.safeAng||0)+dt*.22;                  /* медленно уходит по кругу */
   W.safeShift=(W.safeShift||rr(9,16))-dt;
   if(W.safeShift<=0){ W.safeAng+=rr(1.2,2.6); W.safeShift=rr(9,16); }
@@ -2085,7 +2117,7 @@ function update(dt){
     if(p.ram.t<=0)p.ram=null; }
 
   /* способности */
-  p.ab1Cd-=dt; p.ab2Cd-=dt;
+  p.ab1Cd-=dt; p.ab2Cd-=dt; if(W.swapCd>0)W.swapCd-=dt;
   if(W.lock>0)W.lock-=dt;
   const C=CLASSES[W.cls];
   p.energy=Math.min(p.energyMax,p.energy+14*dt);
@@ -2098,6 +2130,12 @@ function update(dt){
     if(d.passive){ d.tick(A.st,dt,A.lv); continue; }
     const cdKey=slot+'Cd', maxKey=slot+'Max';
     if(d.hold){ if(INPUT[slot]&&!(W.lock>0)) d.use(A.lv,dt,A.st); continue; }
+    /* смена типа готовой постройки не должна ждать общий откат */
+    if(INPUT[slot]&&!(W.lock>0)&&p[cdKey]>0&&(A.id==='place'||A.id==='anchor')){
+      const kind=A.id==='place'?'turret':'anchor';
+      if(hoveredBuild(kind)&&(W.swapCd=(W.swapCd||0))<=0){
+        const r2=d.use(A.lv); if(r2!==false) W.swapCd=.45; }
+    }
     if(INPUT[slot]&&p[cdKey]<=0&&!(W.lock>0)){
       const r=d.use(A.lv);
       let cdv=(r===false)?.4:(r==='quick'?.5:p[maxKey]*mCool());
@@ -2421,7 +2459,11 @@ function update(dt){
     /* всё, что осталось далеко за кадром, сворачивается через 3 секунды */
     const off=(W.viewL!==undefined)&&(b.x<W.viewL||b.x>W.viewR||b.y<W.viewU||b.y>W.viewD);
     b.off=off?(b.off||0)+dt:0;
-    if(b.off>5){ recycleBuild(b); W.builds.splice(i,1); continue; }
+    if(b.off>5){
+      /* улетает обратно к корпусу, а не пропадает на месте */
+      W.pods.push({sx:b.x,sy:b.y,x:b.x,y:b.y,tx:W.p.x,ty:W.p.y,back:1,
+        t:0,dur:.5,kind:b.kind,ti:b.ti,ai:b.ai});
+      recycleBuild(b); W.builds.splice(i,1); continue; }
     if(b.unfold<1) continue;
     if(b.kind==='turret'){
       const T=TURRET_TYPES[b.ti]; b.cd-=dt;
@@ -2441,7 +2483,10 @@ function update(dt){
                 w:1.6,fib:2,jit:5,col:T.col,t:.13}); } }
           if(any&&rng()<.35)S.zap(); } }
       else if(T.id==='laser'){ const e=nearest(b.x,b.y,b.range);
-        if(e){ b.ang=Math.atan2(e.y-b.y,e.x-b.x); hurt(e,b.dmg*dt*9,'laser');
+        /* держит одну цель — греется до двойного урона, сменил цель — сброс */
+        if(e!==b.tgt){ b.tgt=e; b.heat=0; }
+        b.heat=e?Math.min(1,(b.heat||0)+dt*.1):0;
+        if(e){ b.ang=Math.atan2(e.y-b.y,e.x-b.x); hurt(e,b.dmg*dt*9*(1+b.heat),'laser');
           W.beams.push({kind:'ray',x1:b.x,y1:b.y,a:b.ang,len:Math.hypot(e.x-b.x,e.y-b.y),
             w:5,col:T.col,core:'#fff0f4',hot:1,hit:{x:e.x,y:e.y},t:.055}); } }
       else { const e=nearest(b.x,b.y,b.range);
@@ -2539,10 +2584,12 @@ function update(dt){
   for(let i=W.pods.length-1;i>=0;i--){ const pd=W.pods[i];
     pd.t+=dt; const k=Math.min(1,pd.t/pd.dur);
     const ease=1-Math.pow(1-k,2);
+    if(pd.back){ pd.tx=W.p.x; pd.ty=W.p.y; }
     pd.x=lerp(pd.sx,pd.tx,ease); pd.y=lerp(pd.sy,pd.ty,ease);
     pd.y-=Math.sin(k*Math.PI)*26;
     if(rng()<.5)fx.burst(pd.x,pd.y,'#ffd94a',1,40);
     if(k>=1){
+      if(pd.back){ fx.burst(W.p.x,W.p.y,'#ffd94a',6,50); S.ready(); W.pods.splice(i,1); continue; }
       if(pd.kind==='turret'){ const b={kind:'turret',x:pd.tx,y:pd.ty,r:16,ti:pd.ti,
           life:26,cd:0,ang:0,ph:rr(0,TAU),unfold:0,born:0};
         applyTurret(b); W.builds.push(b); }
@@ -2575,9 +2622,20 @@ function update(dt){
     co2.cd-=dt;
     const k=clamp(co2.chg/co2.chgMax,0,1);
     const lc=gridNear(co2.x,co2.y,co2.range+40,BUFO);
-    /* корпус ломают вплотную независимо от заряда */
+    /* пока есть заряд, удары гасит он; корпус страдает только у разряженной */
     for(let q=0;q<lc.length;q++){ const e=lc[q]; if(e.dead)continue;
-      if(Math.hypot(e.x-co2.x,e.y-co2.y)<co2.r+e.r&&e.hitCd<=0){ co2.hp-=e.dmg*.5; e.hitCd=.7; } }
+      if(Math.hypot(e.x-co2.x,e.y-co2.y)<co2.r+e.r&&e.hitCd<=0){
+        e.hitCd=.7;
+        if(co2.chg>0) co2.chg=Math.max(0,co2.chg-co2.chgMax*.14);
+        else co2.hp-=e.dmg*.5; } }
+    /* и принимает на себя вражеские снаряды */
+    for(let q=W.ebullets.length-1;q>=0;q--){ const eb=W.ebullets[q];
+      if(eb.web)continue;
+      if(Math.hypot(eb.x-co2.x,eb.y-co2.y)>co2.r+eb.r)continue;
+      W.ebullets.splice(q,1);
+      if(co2.chg>0) co2.chg=Math.max(0,co2.chg-co2.chgMax*.10);
+      else co2.hp-=eb.dmg;
+      fx.burst(eb.x,eb.y,'#8cf0e0',5,60); }
     /* ниже десяти процентов заряда катушка молчит */
     if(k>.10&&co2.cd<=0){
       const gap=.7-.45*k;                                 /* 0.70 с пустая, 0.25 с полная */
@@ -3717,6 +3775,17 @@ function render(){
   ctx.globalAlpha=1;
 
   /* боевой спутник Зодчего */
+  /* энергетический щит Вектора: постоянное поле, пока щит не пробит */
+  if(W.p && W.p.shMax>0 && W.p.sh>0.5){
+    const pr2=W.p, rr5=pr2.r*1.85+2.5*Math.sin(T*2.4);
+    ctx.save();
+    ctx.strokeStyle='rgba(124,196,255,.55)'; ctx.lineWidth=2;
+    circle(pr2.x,pr2.y,rr5); ctx.stroke();
+    ctx.strokeStyle='rgba(180,228,255,.28)'; ctx.lineWidth=5;
+    circle(pr2.x,pr2.y,rr5); ctx.stroke();
+    ctx.restore();
+  }
+
   /* помощники Зодчего: сколько их — столько ещё можно поставить построек */
   if(W.helpers&&W.helpers.length&&W.cls==='builder'){
     for(const hp3 of W.helpers){
@@ -3862,8 +3931,18 @@ function render(){
     ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=1.4; circle(co2.x,co2.y,co2.r*b4); ctx.stroke();
     for(let i=0;i<3;i++){ ctx.strokeStyle='rgba(159,224,255,'+(.45-i*.1)+')'; ctx.lineWidth=2.2;
       circle(co2.x,co2.y,co2.r*(.42+i*.24)*b4); ctx.stroke(); }
-    const pu=.5+Math.sin(T*(4+co2.chg*6))*.5;
-    softGlow(co2.x,co2.y,co2.r*(2.2+co2.chg*1.6),'rgba(159,224,255,.6)',(.3+co2.chg*.3)*pu);
+    const kc=clamp(co2.chg/co2.chgMax,0,1);
+    const pu=.5+Math.sin(T*(4+kc*6))*.5;
+    /* аура заряда: мягкий ореол, растущий вместе с накопленным током */
+    if(kc>.04){
+      ctx.save();
+      const rg=ctx.createRadialGradient(co2.x,co2.y,co2.r*.6,co2.x,co2.y,co2.r*(1.7+kc*2.4));
+      rg.addColorStop(0,'rgba(140,240,224,'+(.22*kc+.04)+')');
+      rg.addColorStop(1,'rgba(140,240,224,0)');
+      ctx.fillStyle=rg; circle(co2.x,co2.y,co2.r*(1.7+kc*2.4)); ctx.fill();
+      ctx.restore();
+    }
+    softGlow(co2.x,co2.y,co2.r*(2.2+kc*1.4),'rgba(159,224,255,.6)',(.28+kc*.26)*pu);
     ctx.fillStyle='#eaffff'; circle(co2.x,co2.y,co2.r*(.28+co2.chg*.12)*b4); ctx.fill();
     /* заряд и прочность */
     ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(co2.x-20,co2.y-co2.r-14,40,4);
@@ -5116,7 +5195,7 @@ function frame(ts){ requestAnimationFrame(frame);
 requestAnimationFrame(frame);
 
 /* ========================================================= МЕНЮ / ХОД */
-let selCls=null,selMis=null,progress={done:{}};
+let selCls=null,selMis=null,progress={done:{},pts:{}};
 function heroPreview(cid,cvs){
   const g=cvs.getContext('2d'), Wd=cvs.width=232*2, Hh=cvs.height=104*2;
   g.scale(2,2); const C=CLASSES[cid];
@@ -5164,6 +5243,7 @@ function buildMenus(){
     return `<div class="opt" tabindex="0" data-id="${id}" style="color:${c.color}">
       <div class="art"><canvas></canvas></div>
       <div class="bd"><h3>${L(c.name)}</h3><div class="role">${L(c.role)}</div>
+      <div class="pts">${U('pts')}: <b>${(progress.pts&&progress.pts[id])||0}</b></div>
       <p>${L(c.tag)}</p><ul>${c.bullets.map(b=>'<li>'+L(b)+'</li>').join('')}</ul></div></div>`; }).join('');
   makeRail('clsGrid');
   /* язык равняем по правому краю последней карточки, а не по краю экрана */
@@ -5554,6 +5634,11 @@ function gameOver(reason){ if(W.over||W.won)return;
 function winRun(){ if(W.won||W.over)return;
   W.won=true; running=false; S.win();
   progress.done[W.mid]=true;
+  /* очки начисляются только за пройденное задание и копятся отдельно по героям */
+  { const gain=W.kills + Math.round(W.t/6) + W.relics.length*80;
+    progress.pts=progress.pts||{};
+    progress.pts[W.cls]=(progress.pts[W.cls]||0)+gain;
+    W.ptsGain=gain; }
   achGive('first');
   if(W.mid==='m6')achGive('m6');
   if(W.mid==='m7')achGive('m7');
@@ -5567,6 +5652,7 @@ function winRun(){ if(W.won||W.over)return;
   const i=MISSIONS.findIndex(m=>m.id===W.mid);
   musicStop();
   el('winSub').textContent=(i+1<MISSIONS.length)?U('unlockedM')+L(MISSIONS[i+1].name):U('allDone');
+  if(W.ptsGain) setTimeout(()=>toast(U('ptsGain')+': +'+W.ptsGain),700);
   el('winStats').innerHTML=statRows();
   setTimeout(()=>{ show('winScreen'); el('nextBtn').focus(); },700); }
 function statRows(){ return `
@@ -5825,16 +5911,10 @@ addEventListener('dblclick', e=>{ if(e.cancelable) e.preventDefault(); }, {passi
 addEventListener('pointerdown', e=>{ if(e.pointerType==='touch') tcEnable(); }, true);
 
 /* джойстик живёт только в бою: в меню он перехватывал касания */
-/* осталось ли хоть одно не прокачанное до предела оснащение */
+/* есть ли что предложить на выбор — считаем тем же набором, что и карточки */
 function anyUpgradeLeft(){
   if(!W) return false;
-  try{
-    for(const id in WEAPONS){ const d=WEAPONS[id];
-      if(d.cls&&d.cls!=='any'&&d.cls!==W.cls) continue;
-      const w=W.weapons[id];
-      if(!w || w.lv < (d.max||5)) return true; }
-  }catch(e){ return true; }
-  return false;
+  try{ return buildPool().length>0; }catch(e){ return true; }
 }
 
 function tcSync(){
