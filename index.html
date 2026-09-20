@@ -47,6 +47,15 @@
 
   /* цели */
   #hudBtns{position:absolute;top:16px;right:16px;display:flex;gap:8px;pointer-events:auto}
+  #infoPop{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;
+    width:min(340px,86vw);padding:16px 18px;border-radius:16px;text-align:left;
+    background:rgba(16,19,24,.97);border:1px solid rgba(221,226,234,.14);
+    box-shadow:0 18px 50px rgba(0,0,0,.6);pointer-events:none}
+  #infoPop[hidden]{display:none}
+  #infoPop b{display:block;font-size:14px;color:#fff;margin-bottom:7px}
+  #infoPop span{display:block;font-size:12.5px;line-height:1.6;color:var(--dim)}
+  #infoVeil{position:fixed;inset:0;z-index:39;background:rgba(6,8,11,.55)}
+  #infoVeil[hidden]{display:none}
   #lvlBtn{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);pointer-events:auto;cursor:pointer;
     padding:10px 20px;border-radius:14px;font-size:12px;letter-spacing:.10em;text-transform:uppercase;
     color:#f6dfa4;background:rgba(58,46,22,.80);border:1px solid rgba(240,193,75,.42);
@@ -189,7 +198,10 @@
   .best{font-size:11px;color:var(--dim);opacity:.6;margin-top:18px}
   .mgoals{margin:12px 0 0;padding:0;list-style:none;font-size:11px;color:var(--dim);line-height:1.8}
   .mgoals li:before{content:"◆";color:var(--gold);margin-right:7px;font-size:9px}
-  #langBar{display:flex;gap:6px;justify-content:center;margin-bottom:22px}
+  #clsHead{position:relative;margin-bottom:16px}
+  #clsHead h1{margin:0}
+  #langBar{display:flex;gap:6px;position:absolute;right:0;bottom:2px}
+  @media (max-width:620px){ #langBar{position:static;justify-content:center;margin-top:8px} }
   .lang{background:transparent;color:var(--dim);box-shadow:inset 0 0 0 1px var(--line);padding:7px 16px;font-size:11px}
   .lang.on{background:#e8edf4;color:#12141a;box-shadow:none}
   #relicRow{display:flex;gap:8px;justify-content:center;margin-top:22px;flex-wrap:wrap;align-items:center}
@@ -219,9 +231,7 @@
     font-size:11px;font-style:italic;font-weight:700;color:var(--dim);
     border:1px solid rgba(221,226,234,.22);background:rgba(0,0,0,.2)}
   .abcard .inf:hover{color:#fff;border-color:rgba(221,226,234,.5)}
-  .abcard p{display:none;margin:9px 0 0;font-size:11px;line-height:1.5;color:var(--dim);
-    border-top:1px solid rgba(221,226,234,.10);padding-top:8px}
-  .abcard.open p{display:block}
+  .abcard p{display:none}
   .abcard .slot{position:absolute;top:-10px;right:14px;background:currentColor;
     font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.08em}
   .abcard .slot span{color:#12141a}
@@ -318,9 +328,11 @@
 <div id="hint" hidden data-i18n="hint">WASD — ход · мышь — прицел · ЛКМ / ПКМ — способности · пробел — рывок · R — автоогонь · P — пауза</div>
 
 <div class="screen on" id="clsScreen"><div class="wrap">
-  <div id="langBar"><button class="lang on" data-l="ru">RU</button><button class="lang" data-l="en">EN</button></div>
-  <div class="step" data-i18n="s1">Шаг 1 из 2</div><h1 data-i18n="chooseHull">Выбор корпуса</h1>
-  <div class="sub" data-i18n="chooseHullSub">Четыре разные машины.</div>
+  <div id="clsHead">
+    <div class="step" data-i18n="s1">Шаг 1 из 2</div>
+    <h1 data-i18n="chooseHull">Выбор корпуса</h1>
+    <div id="langBar"><button class="lang on" data-l="ru">RU</button><button class="lang" data-l="en">EN</button></div>
+  </div>
   <div class="grid" id="clsGrid"></div>
   <div id="relicRow"></div>
   <details id="codex"><summary id="codexSum">—</summary><div id="codexBody"></div></details>
@@ -394,7 +406,6 @@
 </div></div>
 
 <div class="screen" id="relicScreen"><div class="wrap">
-  <div class="step" style="color:#f0c14b" data-i18n="relicTitle">Трофейный модуль</div>
   <h1 style="color:#f0c14b" data-i18n="relicTitle">Трофейный модуль</h1>
   <div class="sub" data-i18n="relicSub"></div>
   <div class="grid" id="relicCards"></div>
@@ -442,7 +453,8 @@
   background:conic-gradient(rgba(8,10,13,.74) calc((1 - var(--cd))*360deg), rgba(0,0,0,0) 0)}
 #tc.lean #tcBtns{right:58px;bottom:26px;gap:20px;grid-template-columns:repeat(2,76px)}
 #tc.lean .tcb{width:76px;height:76px;font-size:23px}
-#tc.lean #tcAb1{width:88px;height:88px;margin:0 0 0 -34px;font-size:26px;justify-self:center}
+#tc.lean #tcBtns{justify-items:center}
+#tc.lean #tcAb1{width:88px;height:88px;grid-column:1 / span 2;margin:0;font-size:26px;justify-self:center}
 #tcDash{color:#8fd4ff;border-color:rgba(124,196,255,.34);background:rgba(20,32,44,.58)}
 #tcDash.hit{background:rgba(52,88,120,.75)}
 .tcb.dead{opacity:.28;pointer-events:none}
@@ -479,8 +491,12 @@ body.touch #bl{display:none}
   .bar{height:8px;width:min(230px,33vw)}
   #hudBtns{top:12px;right:26px;gap:8px}
   .hudbtn{width:32px;height:32px;border-radius:10px;font-size:12px}
-  #objBox{top:58px;right:26px;width:172px;padding:7px 10px;border-radius:13px;max-height:76px;overflow:hidden}
+  #objBox{top:58px;right:26px;width:172px;padding:7px 10px;border-radius:13px}
   #objBox h4{margin:0 0 5px;font-size:9px}
+  #objBox{pointer-events:auto;cursor:pointer}
+  #objBox.min .obj{display:none}
+  #objBox.min .obj.first{display:flex}
+  #objBox.min h4::after{content:' ▾';opacity:.6}
   .obj{font-size:10.5px;line-height:1.32;margin-bottom:5px;gap:6px}
   .obj .tick{width:12px;height:12px;font-size:8px}
   .obj .op{font-size:9px}
@@ -512,17 +528,18 @@ body.touch #bl{display:none}
 }
 /* совсем низкий экран: браузерная панель съедает половину */
 @media (max-height:400px){
-  #objBox{top:52px;right:22px;width:150px;max-height:62px;padding:6px 9px;font-size:10px}
+  #objBox{top:52px;right:22px;width:150px;padding:6px 9px;font-size:10px}
   #objBox h4{font-size:8px;margin:0 0 3px}
   .obj{font-size:9.5px;margin-bottom:3px}
   #tc.lean #tcBtns{right:44px;bottom:18px;gap:15px;grid-template-columns:repeat(2,60px)}
   #tc.lean .tcb{width:60px;height:60px;font-size:18px}
-  #tc.lean #tcAb1{width:70px;height:70px;margin:0 0 0 -26px;font-size:21px;justify-self:center}
+  #tc.lean #tcAb1{width:70px;height:70px;grid-column:1 / span 2;margin:0;font-size:21px;justify-self:center}
   #clock{font-size:16px}
   .bar{height:7px;width:min(190px,30vw)}
 }
 </style>
 <div id="rot" hidden><div><i></i><b></b><span></span></div></div>
+<div id="infoPop" hidden><b id="infoTitle"></b><span id="infoText"></span></div>
 <div id="lvlBtn" hidden><span id="lvlBtnT">Новый уровень</span> <b>+1</b></div>
 <div id="tc" hidden>
   <div id="tcStick"><div id="tcRing"></div><div id="tcNub"></div></div>
@@ -619,7 +636,7 @@ const UI={
  allDone:['Все задания пройдены','All missions cleared'],
  unlockedM:['Открыто задание: ','Unlocked: '],
  relicTitle:['Трофейный модуль','Salvaged Relic'],
- relicSub:['Уникальная модернизация. Сохраняется во всех следующих заданиях.','A unique upgrade. It carries over into every following mission.'],
+ relicSub:['Уникальная модернизация. Сохраняется во всех следующих заданиях (для текущего героя).','A unique upgrade. It carries over into every following mission (for this hull).'],
  relicHave:['Трофеи','Relics'],
  xpN:['опыт','xp'], densN:['плотность','density'],
  autoOn:['АВТООГОНЬ ВКЛЮЧЁН','AUTOFIRE ON'], autoOff:['АВТООГОНЬ ВЫКЛЮЧЕН','AUTOFIRE OFF'],
@@ -665,7 +682,7 @@ const vr=(a,b)=>a+Math.random()*(b-a);          /* косметика */
 let AC=null,MASTER=null,muted=false;
 let MUSG=null;
 function audioInit(){ if(AC)return; try{ AC=new (window.AudioContext||window.webkitAudioContext)();
-  MASTER=AC.createGain(); MASTER.gain.value=.2; MASTER.connect(AC.destination);
+  MASTER=AC.createGain(); MASTER.gain.value=.28; MASTER.connect(AC.destination);
   MUSG=AC.createGain(); MUSG.gain.value=.34; MUSG.connect(MASTER);}catch(e){AC=null;} }
 /* --- фоновая тема: у каждого ландшафта свой лад, темп и тембр --- */
 let MUS=null;
@@ -724,7 +741,7 @@ function nz(d,v,lp){ if(!AC||muted)return; const n=Math.floor(AC.sampleRate*d),b
 const SFXT={};
 function gate(k,ms){ const n=performance.now(); if(SFXT[k]&&n-SFXT[k]<ms)return false; SFXT[k]=n; return true; }
 const S={ shot:()=>tone(430,.05,'triangle',.05,250), mg:()=>{nz(.05,.06,2600);tone(300,.04,'square',.03,180);},
-  beam:()=>tone(920,.05,'sine',.028,720), boom:()=>{nz(.34,.22,700);tone(70,.3,'sine',.16,32);},
+  beam:()=>tone(920,.05,'sine',.028,720), boom:()=>{nz(.34,.15,700);tone(70,.3,'sine',.11,32);},
   thud:()=>nz(.14,.12,500), hit:()=>tone(200,.03,'triangle',.04,140), pick:()=>tone(880,.05,'sine',.05,1250),
   lvl:()=>{tone(440,.12,'sine',.12);setTimeout(()=>tone(660,.12,'sine',.12),100);setTimeout(()=>tone(880,.2,'sine',.12),200);},
   hurt:()=>{ S.ouch(); }, build:()=>{tone(300,.07,'square',.07);setTimeout(()=>tone(480,.09,'square',.06),70);},
@@ -1007,14 +1024,18 @@ function genFences(w,size){
   for(let i=0;i<n;i++){
     const a=rr(0,TAU), d=rr(420,size*.42);
     let x=c+Math.cos(a)*d, y=c+Math.sin(a)*d;
-    const dir=rr(0,TAU), seg=ri(3,6), len=rr(70,110);
+    /* направление близко к горизонтали: вертикальные ограждения читались плохо */
+    const dir=(rng()<.5?0:Math.PI)+rr(-.38,.38), seg=ri(3,6), len=rr(70,110);
     const pts=[];
-    for(let k=0;k<=seg;k++){ pts.push({x,y}); x+=Math.cos(dir+rr(-.25,.25))*len; y+=Math.sin(dir+rr(-.25,.25))*len; }
+    for(let k=0;k<=seg;k++){ pts.push({x,y}); x+=Math.cos(dir+rr(-.18,.18))*len; y+=Math.sin(dir+rr(-.18,.18))*len; }
     for(let k=0;k<pts.length-1;k++){
-      const f={x1:pts[k].x,y1:pts[k].y,x2:pts[k+1].x,y2:pts[k+1].y,r:7};
+      const f={x1:pts[k].x,y1:pts[k].y,x2:pts[k+1].x,y2:pts[k+1].y,r:7,ph:rr(0,TAU)};
       f.mx=(f.x1+f.x2)/2; f.my=(f.y1+f.y2)/2;
       f.rad=Math.hypot(f.x2-f.x1,f.y2-f.y1)/2+f.r;
-      w.fences.push(f); }
+      /* не ставим поверх камней: иначе ограждение уходит под них */
+      let bad=false;
+      for(const ob of w.obstacles) if(segDist(ob.x,ob.y,f).d<ob.r+16){ bad=true; break; }
+      if(!bad) w.fences.push(f); }
   }
 }
 function genProps(w,biome,size){
@@ -1154,7 +1175,9 @@ beam:{name:['Фазовый луч','Phase Beam'],glyph:'⌁',cls:'vector',max:5
   for(const e of W.enemies){ if(e.dead)continue;
     const t=((e.x-W.p.x)*Math.cos(a)+(e.y-W.p.y)*Math.sin(a)); if(t<0||t>range)continue;
     const px=W.p.x+Math.cos(a)*t,py=W.p.y+Math.sin(a)*t;
-    if(Math.hypot(e.x-px,e.y-py)<e.r+(8+lv)*(F?F.w:1)){ hurt(e,dps*dt*w.hot,'beam'); if(t<end){end=t;hitPt={x:px,y:py};} if(++n>lv)break; } }
+    if(Math.hypot(e.x-px,e.y-py)<e.r+(8+lv)*(F?F.w:1)){ hurt(e,dps*dt*w.hot,'beam');
+      if(gate('beamspray',70)) fx.spray(e.x,e.y,a,e.blood||'#b03030',3);
+      if(t<end){end=t;hitPt={x:px,y:py};} if(++n>lv)break; } }
   for(const nn of W.nests){ if(nn.dead)continue;
     const t=((nn.x-W.p.x)*Math.cos(a)+(nn.y-W.p.y)*Math.sin(a)); if(t<0||t>range)continue;
     const px=W.p.x+Math.cos(a)*t,py=W.p.y+Math.sin(a)*t;
@@ -1267,16 +1290,16 @@ sidearm:{name:['Боевые помощники','Combat Helpers'],glyph:'⁚',c
     if(rng()<.35)S.shot();
   } }},
 turretkit:{name:['Оружейный комплект','Turret Kit'],glyph:'⌾',cls:'builder',max:5,col:'#ffd94a',
- desc:l=>tt(`+${l} турел(и) к лимиту, урон всех турелей +${l*18}%, срок службы +${l*4} с.`,
-            `+${l} turret slots, all turret damage +${l*18}%, lifetime +${l*4} s.`),
+ desc:l=>tt(`+${l} турел(и) к лимиту, урон всех турелей +${l*18}%, темп стрельбы +${l*6}%.`,
+            `+${l} turret slots, all turret damage +${l*18}%, fire rate +${l*6}%.`),
  init:w=>{}, tick(w,dt,lv){ w.slots=lv; }},
 guidance:{name:['Система наведения','Guidance Suite'],glyph:'⌖',cls:'builder',max:5,col:'#ffd94a',
  desc:l=>tt(`Радиус взрыва ракет +${l*22}%, урон построек +${l*12}%, дальность огня +${l*10}%.`,
             `Rocket blast radius +${l*22}%, building damage +${l*12}%, range +${l*10}%.`),
  init:w=>{}, tick(w,dt,lv){ w.homing=1; }},
 anchorkit:{name:['Расширение модулей','Anchor Expansion'],glyph:'⬡',cls:'builder',max:5,col:'#ffd94a',
- desc:l=>tt(`+${l} опорн(ых) модул(ей), радиус аур +${l*14}%, сила аур +${l*15}%.`,
-            `+${l} support anchors, aura radius +${l*14}%, aura strength +${l*15}%.`),
+ desc:l=>tt(`+${l} опорн(ых) модул(ей), радиус аур +${l*14}%, сила аур +${l*15}%.`+(l>=5?' На пятом уровне откат установки построек короче на 1 с.':''),
+            `+${l} support anchors, aura radius +${l*14}%, aura strength +${l*15}%.`+(l>=5?' At rank 5 building cooldowns are 1s shorter.':'')),
  init:w=>{}, tick(w,dt,lv){ w.slots=lv; }},
 seismic:{name:['Сейсмические мины','Seismic Mines'],glyph:'⊙',cls:'builder',max:5,col:'#ffd94a',
  desc:l=>tt(`Мины за кормой. Взрыв ${24+l*15} в радиусе ${Math.round(72+l*11)}.`,
@@ -1285,14 +1308,25 @@ seismic:{name:['Сейсмические мины','Seismic Mines'],glyph:'⊙',
   W.mines.push({x:W.p.x,y:W.p.y,r:10,life:11,arm:.5,dmg:(24+lv*15)*mDmg(),blast:(72+lv*11)*mArea(),
     col:tierC(lv,5,'#c9d84a','#ff5a3c')}); }},
 medic:{name:['Ремонтный дрон','Repair Drone'],glyph:'✚',cls:'builder',max:5,col:'#ffd94a',
- desc:l=>tt(`Дрон чинит корпус на ${(1+l*.7).toFixed(1)} единицы в секунду и сбивает подлетающих.`,
-            `The drone repairs ${(1+l*.7).toFixed(1)} per second and shoots down leakers.`),
- init:w=>{w.a=0;w.cd=0;}, tick(w,dt,lv){ w.a+=dt*1.5; const R=56;
+ desc:l=>tt(`Чинит корпус на ${(1+l*.7).toFixed(1)} ед./с и сбивает вражеские снаряды: ${l>=5?4:1} заряд(а), восстановление ${l>=5?2:3} с.`,
+            `Repairs ${(1+l*.7).toFixed(1)}/s and knocks down enemy shots: ${l>=5?4:1} charge(s), ${l>=5?2:3}s recharge.`),
+ init:w=>{w.a=0;w.ch=1;w.rc=0;},
+ tick(w,dt,lv){ w.a+=dt*1.5; const R=56;
   w.dx=W.p.x+Math.cos(w.a)*R; w.dy=W.p.y+Math.sin(w.a)*R;
-  W.p.hp=Math.min(W.p.hpMax,W.p.hp+(1+lv*.7)*dt); w.cd-=dt;
-  if(w.cd<=0){ const e=nearest(w.dx,w.dy,230); if(e){ w.cd=.55*mRate();
-    proj({x:w.dx,y:w.dy,vx:e.x-w.dx,vy:e.y-w.dy,dmg:(6+lv*4)*mDmg(),r:4,life:1,
-      col:'#ffffff',edge:tierC(lv,5,'#9ade6a','#ff7a3c'),norm:440}); } } }},
+  W.p.hp=Math.min(W.p.hpMax,W.p.hp+(1+lv*.7)*dt);
+  /* заряды восстанавливаются по одному, поэтому часть щита доступна почти всегда */
+  const maxCh=lv>=5?4:1, gap=lv>=5?2:3;
+  if(w.ch===undefined)w.ch=maxCh;
+  if(w.ch<maxCh){ w.rc=(w.rc||0)-dt; if(w.rc<=0){ w.ch++; w.rc=gap; } }
+  if(w.ch>maxCh)w.ch=maxCh;
+  if(w.ch<=0)return;
+  for(let i=W.ebullets.length-1;i>=0 && w.ch>0;i--){
+    const b=W.ebullets[i]; if(b.web)continue;
+    if(Math.hypot(b.x-W.p.x,b.y-W.p.y) > W.p.r+34)continue;
+    W.ebullets.splice(i,1); w.ch--;
+    if(w.rc<=0)w.rc=gap;
+    fx.ring(b.x,b.y,16,'#9ade6a'); fx.burst(b.x,b.y,'#9ade6a',6,70); S.blink();
+  } }},
 
 cloud:{name:['Споровое облако','Spore Cloud'],glyph:'❋',cls:'spore',max:5,col:'#c86bff',
  desc:l=>tt(`Облако летит по курсору, травит ${5+l*4}/сек, радиус ${Math.round(46+l*11)}, висит ${(2+l*.4).toFixed(1)} с.`,
@@ -1463,11 +1497,13 @@ const ABILITIES={
   desc:l=>tt(`+${(10+2.5*(l-1)).toFixed(0)}% урона за полсекунды, потолок +${50+12.5*(l-1)}%, ширина до ${Math.round((1+2.5*l/5)*100)}%.`,
              `+${(10+2.5*(l-1)).toFixed(0)}% damage per half second, cap +${50+12.5*(l-1)}%, width to ${Math.round((1+2.5*l/5)*100)}%.`),
   tick(st,dt,l){
-    const moving=(INPUT.mx||INPUT.my)||Math.hypot(W.p.vx,W.p.vy)>18;
+    const moving=(INPUT.mx||INPUT.my)||Math.hypot(W.p.vx,W.p.vy)>34;
     const rate=(.10+.025*(l-1))/.5, cap=.5+.125*(l-1);
     if(moving){ if(st.c>0){ st.c=0; fx.ring(W.p.x,W.p.y,42,'#5cc8ff'); } }
     else st.c=Math.min(cap,(st.c||0)+rate*dt);
-    W.focus={c:st.c||0,cap,dmg:1+(st.c||0),w:1+((st.c||0)/cap)*(2.5*l/5)}; }},
+    W.focus={c:st.c||0,cap,dmg:1+(st.c||0),w:1+((st.c||0)/cap)*(1.1+.5*l)};
+    /* кольцо набора: видно, что накопление идёт */
+    if((st.c||0)>.02) fx.ring(W.p.x,W.p.y,W.p.r*1.5+((st.c||0)/cap)*18,'#5cc8ff'); }},
 
  storm:{name:['Разряд','Sith Storm'],glyph:'⚡',hold:1,max:5,col:'#5cc8ff',
   info:['Держите кнопку — ток бьёт по целям цепью, тратя энергию.','Hold the button — lightning chains between targets, draining energy.'],
@@ -1584,32 +1620,32 @@ const ABILITIES={
       range:(90+l*16)*mArea(),n:1+l,dmg:(16+l*9)*mDmg(),cd:0,ph:rr(0,TAU),born:0});
     S.wet(); return true; }},
  unlock_rocket:{name:['Ракетная турель','Rocket Turret'],glyph:'➤',passive:1,col:'#ffd94a',unlock:{kind:'turret',idx:1},
-  info:['Открывает ещё один тип постройки.','Unlocks the module so it appears in your build cycle.'],
-  desc:l=>tt('Открывает узел: он появится в цикле построек на ЛКМ или ПКМ.','Available in your build cycle.'),
+  info:['Турель бьёт залпами ракет по площади. Медленная, но сносит плотные группы.','A turret firing rocket salvos. Slow, but it clears tight groups.'],
+  desc:l=>tt('Открывает ракетную турель в цикле построек.','Unlocks the rocket turret in your build cycle.'),
   tick(){}},
  unlock_laser:{name:['Лазерная турель', 'Laser Turret'],glyph:'⌁',passive:1,col:'#ffd94a',unlock:{kind:'turret',idx:3},
-  info:['Открывает ещё один тип постройки.','Unlocks the module so it appears in your build cycle.'],
-  desc:l=>tt('Открывает узел: он появится в цикле построек на ЛКМ или ПКМ.','Available in your build cycle.'),
+  info:['Турель держит противника непрерывным лучом. Точная, хороша против одиночных крупных целей.','A turret holding a continuous beam. Precise, strong against single heavy targets.'],
+  desc:l=>tt('Открывает лазерную турель в цикле построек.','Unlocks the laser turret in your build cycle.'),
   tick(){}},
  unlock_flak:{name:['Зенитная турель', 'Flak Turret'],glyph:'✸',passive:1,col:'#ffd94a',unlock:{kind:'turret',idx:4},
-  info:['Открывает ещё один тип постройки.','Unlocks the module so it appears in your build cycle.'],
-  desc:l=>tt('Открывает узел: он появится в цикле построек на ЛКМ или ПКМ.','Available in your build cycle.'),
+  info:['Турель ставит перед собой стену осколков. Достаёт сразу нескольких на подходе.','A turret throwing a wall of shrapnel. Hits several attackers at once.'],
+  desc:l=>tt('Открывает зенитную турель в цикле построек.','Unlocks the flak turret in your build cycle.'),
   tick(){}},
  unlock_guard:{name:['Щитовой модуль', 'Bulwark Anchor'],glyph:'▣',passive:1,col:'#ffd94a',unlock:{kind:'anchor',idx:1},
-  info:['Открывает ещё один тип постройки.','Unlocks the module so it appears in your build cycle.'],
-  desc:l=>tt('Открывает узел: он появится в цикле построек на ЛКМ или ПКМ.','Available in your build cycle.'),
+  info:['Модуль прикрывает всё, что стоит рядом: постройки и вы получаете меньше урона в его поле.','An anchor that shelters everything nearby: less damage taken inside its field.'],
+  desc:l=>tt('Открывает щитовой модуль в цикле построек.','Unlocks the bulwark anchor in your build cycle.'),
   tick(){}},
  unlock_repair:{name:['Ремонтный модуль', 'Repair Anchor'],glyph:'✚',passive:1,col:'#ffd94a',unlock:{kind:'anchor',idx:2},
-  info:['Открывает ещё один тип постройки.','Unlocks the module so it appears in your build cycle.'],
-  desc:l=>tt('Открывает узел: он появится в цикле построек на ЛКМ или ПКМ.','Available in your build cycle.'),
+  info:['Модуль чинит корпус и соседние постройки, пока вы держитесь в его радиусе.','An anchor repairing your hull and nearby buildings while you stay in range.'],
+  desc:l=>tt('Открывает ремонтный модуль в цикле построек.','Unlocks the repair anchor in your build cycle.'),
   tick(){}},
  unlock_charge:{name:['Разрядник', 'Charger Anchor'],glyph:'⌘',passive:1,col:'#ffd94a',unlock:{kind:'anchor',idx:3},
-  info:['Открывает ещё один тип постройки.','Unlocks the module so it appears in your build cycle.'],
-  desc:l=>tt('Открывает узел: он появится в цикле построек на ЛКМ или ПКМ.','Available in your build cycle.'),
+  info:['Модуль разгоняет темп стрельбы всего, что стоит в его поле, включая ваши турели.','An anchor speeding up the fire rate of everything in its field, turrets included.'],
+  desc:l=>tt('Открывает разрядник в цикле построек.','Unlocks the charger anchor in your build cycle.'),
   tick(){}},
  unlock_repel:{name:['Отражающий модуль', 'Repulsor Anchor'],glyph:'⊘',passive:1,col:'#ffd94a',unlock:{kind:'anchor',idx:4},
-  info:['Открывает ещё один тип постройки.','Unlocks the module so it appears in your build cycle.'],
-  desc:l=>tt('Открывает узел: он появится в цикле построек на ЛКМ или ПКМ.','Available in your build cycle.'),
+  info:['Модуль отталкивает подошедших вплотную и сбивает им скорость.','An anchor pushing back anything that closes in and slowing it down.'],
+  desc:l=>tt('Открывает отражающий модуль в цикле построек.','Unlocks the repulsor anchor in your build cycle.'),
   tick(){}},
 
  blink:{max:5,col:'#5cc8ff',info:['Мгновенный скачок к курсору с ударом на входе и выходе.','Instant jump to the cursor with a blast at both ends.'],desc:l=>tt(`Скачок до ${300+l*40} единиц, урон ${40+l*22} на входе и ${60+l*30} на выходе.`,`Jump up to ${300+l*40}, ${40+l*22} damage on exit and ${60+l*30} on arrival.`),name:['Фазовый скачок','Phase Jump'],glyph:'⟢',cd:11,use(){
@@ -1641,7 +1677,7 @@ const ABILITIES={
    if(h){ h.ti=nextUnlocked('turret',h.ti); W.lastTi=h.ti; applyTurret(h); h.unfold=.35; S.build();
      toast(U('turretSel')+' — '+L(TURRET_TYPES[h.ti].name)); return 'quick'; }
    const tiNext=cycleSlot('turret');
-   const d=Math.min(300,Math.hypot(INPUT.ax-W.p.x,INPUT.ay-W.p.y));
+   const d=Math.min(600,Math.hypot(INPUT.ax-W.p.x,INPUT.ay-W.p.y));
    const a=Math.atan2(INPUT.ay-W.p.y,INPUT.ax-W.p.x);
    if(blockedSpot(W.p.x+Math.cos(a)*d,W.p.y+Math.sin(a)*d)){ toast(tt('ЗДЕСЬ НЕ ПОСТАВИТЬ','NO ROOM HERE')); return false; }
    W.pods.push({sx:W.p.x,sy:W.p.y,x:W.p.x,y:W.p.y,tx:W.p.x+Math.cos(a)*d,ty:W.p.y+Math.sin(a)*d,
@@ -1652,7 +1688,7 @@ const ABILITIES={
    if(h){ h.ai=nextUnlocked('anchor',h.ai); h.unfold=.4; W.lastAi=h.ai; S.build();
      toast(U('anchorSel')+' — '+L(ANCHOR_TYPES[h.ai].name)); return 'quick'; }
    const aiNext=cycleSlot('anchor');
-   const d=Math.min(300,Math.hypot(INPUT.ax-W.p.x,INPUT.ay-W.p.y));
+   const d=Math.min(600,Math.hypot(INPUT.ax-W.p.x,INPUT.ay-W.p.y));
    const a=Math.atan2(INPUT.ay-W.p.y,INPUT.ax-W.p.x);
    if(blockedSpot(W.p.x+Math.cos(a)*d,W.p.y+Math.sin(a)*d)){ toast(tt('ЗДЕСЬ НЕ ПОСТАВИТЬ','NO ROOM HERE')); return false; }
    W.pods.push({sx:W.p.x,sy:W.p.y,x:W.p.x,y:W.p.y,tx:W.p.x+Math.cos(a)*d,ty:W.p.y+Math.sin(a)*d,
@@ -1688,7 +1724,7 @@ function applyTurret(b){
   b.ti=b.ti; b.type=T.id; b.col=T.col;
   b.rate=T.rate; b.baseDmg=T.dmg*dm*(g?1+g.lv*.12:1); b.baseRange=T.range*rg;
   b.homing=0; b.baseBlast=(T.id==='rocket'||T.id==='flak')?(46*(g?1+g.lv*.22:1)):0;
-  b.life=Math.max(b.life,40+(kit?kit.lv*6:0));
+  b.life=1e9;
   W.lastTi=b.ti;
 }
 
@@ -2064,7 +2100,11 @@ function update(dt){
     if(d.hold){ if(INPUT[slot]&&!(W.lock>0)) d.use(A.lv,dt,A.st); continue; }
     if(INPUT[slot]&&p[cdKey]<=0&&!(W.lock>0)){
       const r=d.use(A.lv);
-      p[cdKey]=(r===false)?.4:(r==='quick'?.5:p[maxKey]*mCool());
+      let cdv=(r===false)?.4:(r==='quick'?.5:p[maxKey]*mCool());
+      /* пятый уровень «Расширения модулей» ускоряет установку */
+      const ak=W.weapons.anchorkit;
+      if(ak&&ak.lv>=5&&(A.id==='place'||A.id==='anchor')) cdv=Math.max(.4,cdv-1);
+      p[cdKey]=cdv;
     }
   }
 
@@ -2377,23 +2417,29 @@ function update(dt){
 
   /* постройки */
   for(let i=W.builds.length-1;i>=0;i--){ const b=W.builds[i];
-    b.life-=dt; b.born=Math.min(1,(b.born||0)+dt*4); b.unfold=Math.min(1,(b.unfold||0)+dt*2.2);
+    b.born=Math.min(1,(b.born||0)+dt*4); b.unfold=Math.min(1,(b.unfold||0)+dt*2.2);
     /* всё, что осталось далеко за кадром, сворачивается через 3 секунды */
     const off=(W.viewL!==undefined)&&(b.x<W.viewL||b.x>W.viewR||b.y<W.viewU||b.y>W.viewD);
     b.off=off?(b.off||0)+dt:0;
     if(b.off>5){ recycleBuild(b); W.builds.splice(i,1); continue; }
-    if(b.unfold<1){ if(b.life<=0)W.builds.splice(i,1); continue; }
+    if(b.unfold<1) continue;
     if(b.kind==='turret'){
       const T=TURRET_TYPES[b.ti]; b.cd-=dt;
       /* модули урона, радиуса и темпа действуют и на постройки */
       b.dmg=(b.baseDmg||T.dmg)*mDmg()*powerAt(b.x,b.y);
       b.range=(b.baseRange||T.range)*mArea();
       b.blast=(b.baseBlast||0)*mArea();
-      if(T.id==='tesla'){ let any=false;
-        for(const e of W.enemies){ if(e.dead)continue;
-          if(Math.hypot(e.x-b.x,e.y-b.y)<b.range){ hurt(e,b.dmg*dt*3,'tesla'); any=true;
-            if(b.cd<=0)W.beams.push({kind:'bolt',x1:b.x,y1:b.y,x2:e.x,y2:e.y,w:2,col:T.col,t:.13}); } }
-        if(b.cd<=0){ b.cd=.25; if(any&&rng()<.25)S.zap(); } }
+      if(T.id==='tesla'){
+        /* импульсами, а не потоком: иначе модернизация темпа стрельбы её не касалась */
+        if(b.cd<=0){
+          const gap=Math.max(.08,.30*mRate());
+          b.cd=gap; let any=false;
+          for(const e of W.enemies){ if(e.dead)continue;
+            if(Math.hypot(e.x-b.x,e.y-b.y)<b.range){
+              hurt(e,b.dmg*gap*3,'tesla'); any=true;
+              W.beams.push({kind:'bolt',x1:b.x,y1:b.y,x2:e.x,y2:e.y,
+                w:1.6,fib:2,jit:5,col:T.col,t:.13}); } }
+          if(any&&rng()<.35)S.zap(); } }
       else if(T.id==='laser'){ const e=nearest(b.x,b.y,b.range);
         if(e){ b.ang=Math.atan2(e.y-b.y,e.x-b.x); hurt(e,b.dmg*dt*9,'laser');
           W.beams.push({kind:'ray',x1:b.x,y1:b.y,a:b.ang,len:Math.hypot(e.x-b.x,e.y-b.y),
@@ -2505,20 +2551,6 @@ function update(dt){
       ACHST.builds++; fx.shock(pd.tx,pd.ty,44,'#ffd94a'); S.land(); shake(3);
       W.pods.splice(i,1); } }
 
-  /* боевой спутник Зодчего: единственный источник огня на ходу */
-  if(W.cls==='builder'){
-    if(!W.drone)W.drone={a:0,cd:0};
-    const dr=W.drone; dr.a+=dt*1.7;
-    const kit=W.weapons.turretkit;
-    dr.x=p.x+Math.cos(dr.a)*46; dr.y=p.y+Math.sin(dr.a)*46;
-    dr.cd-=dt;
-    if(dr.cd<=0){ const e=nearest(dr.x,dr.y,280);
-      if(e){ dr.cd=.55*mRate();
-        proj({x:dr.x,y:dr.y,vx:e.x-dr.x,vy:e.y-dr.y,norm:600,
-          dmg:(7+(kit?kit.lv*3:0))*mDmg()*powerAt(dr.x,dr.y),r:4,life:1.1,range:290,
-          col:'#ffffff',edge:'#ffd94a',tracer:1});
-        fx.muzzle(dr.x,dr.y,Math.atan2(e.y-dr.y,e.x-dr.x),'#ffe9a0'); } }
-  }
 
   /* дуговой щит */
   if(p.shield){ p.shield.t-=dt; if(p.shield.t<=0)p.shield=null; }
@@ -2697,7 +2729,16 @@ function update(dt){
       const others=W.tps.filter(o=>o!==tp&&o.built>=1);
       if(others.length){ const dst=others[(W.tpi=(W.tpi||0)+1)%others.length];
         fx.shock(p.x,p.y,90,'#5cc8ff'); p.x=dst.x; p.y=dst.y+40; dst.cd=2.2; tp.cd=2.2;
-        cam.x=p.x; cam.y=p.y; fx.shock(p.x,p.y,110,'#5cc8ff'); S.blink(); p.ifr=Math.max(p.ifr,.6); } }
+        cam.x=p.x; cam.y=p.y; fx.shock(p.x,p.y,110,'#5cc8ff'); S.blink(); p.ifr=Math.max(p.ifr,.6);
+        /* расталкиваем тех, кто оказался вплотную: иначе выход в гущу — самоубийство */
+        { const lk=gridNear(p.x,p.y,150,BUFA);
+          for(let q2=0;q2<lk.length;q2++){ const e=lk[q2]; if(e.dead)continue;
+            const dx=e.x-p.x, dy=e.y-p.y, dd=Math.hypot(dx,dy)||1;
+            if(dd>140)continue;
+            const push=(1-dd/140)*86;
+            e.x=clamp(e.x+dx/dd*push,e.r,W.size-e.r);
+            e.y=clamp(e.y+dy/dd*push,e.r,W.size-e.r);
+            e.slow=Math.max(e.slow||0,.3); } } } }
   }
 
   /* аптечки */
@@ -3114,7 +3155,7 @@ function drawCards(){ const pool=buildPool(),out=[];
     if(lt&&lt!==NULLEL){
       /* число в скобках — сколько улучшений предстоит выбрать вместе с этим */
       const left=Math.max(1,pendingLevels+1);
-      lt.textContent = U('upgrade') + (left>1 ? ' ('+left+')' : ''); }
+      lt.textContent = U('upgrade') + (left>1 ? ' (+'+left+')' : ''); }
     /* равняем «Уровень» по левому краю первой карточки */
     requestAnimationFrame(()=>{ try{
       const st=el('lvlStep'), hd=el('lvlHead'), c0=document.querySelector('#cards .card');
@@ -3329,8 +3370,10 @@ function render(){
         ctx.stroke(); }
       ctx.globalAlpha=1; continue; }
     const k=clamp(q.t/q.max,0,1);
-    ctx.globalAlpha=(q.air?.26:.4)*k; ctx.fillStyle=q.col; blobPath(q.x,q.y,q.r,T,q.x*.01,.07); ctx.fill();
-    ctx.globalAlpha=.5*k; ctx.strokeStyle=q.col; ctx.lineWidth=2; blobPath(q.x,q.y,q.r,T,q.x*.01,.07); ctx.stroke();
+    /* форма застывшая: лужа не шевелится, а медленно растекается до своего размера */
+    const grow2=Math.min(1,.55+(1-k)*1.1), rr4=q.r*grow2;
+    ctx.globalAlpha=(q.air?.26:.4)*k; ctx.fillStyle=q.col; blobPath(q.x,q.y,rr4,0,q.x*.01,.07); ctx.fill();
+    ctx.globalAlpha=.5*k; ctx.strokeStyle=q.col; ctx.lineWidth=2; blobPath(q.x,q.y,rr4,0,q.x*.01,.07); ctx.stroke();
     ctx.globalAlpha=1; }
 
   /* метка готовящейся засады */
@@ -3430,24 +3473,30 @@ function render(){
     const mx2=(f.x1+f.x2)/2,my2=(f.y1+f.y2)/2;
     if(!vis(mx2,my2,120))continue;
     ctx.lineCap='round';
-    /* тень на земле — сразу видно, что предмет стоит, а не нарисован на полу */
+    const fl=.55+.45*Math.sin(T*2.2+(f.ph||0));
+    /* тень на земле */
     ctx.strokeStyle='rgba(0,0,0,.42)'; ctx.lineWidth=7;
     ctx.beginPath(); ctx.moveTo(f.x1,f.y1+6); ctx.lineTo(f.x2,f.y2+6); ctx.stroke();
-    /* тёмная подложка под жердями даёт контур на любом фоне */
-    ctx.strokeStyle='rgba(18,16,14,.85)'; ctx.lineWidth=5.6;
-    ctx.beginPath(); ctx.moveTo(f.x1,f.y1); ctx.lineTo(f.x2,f.y2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(f.x1,f.y1-8); ctx.lineTo(f.x2,f.y2-8); ctx.stroke();
-    const rail=mix(B.accent,'#d8d0bc',.62), post=mix(B.accent,'#efe7d2',.72);
-    ctx.strokeStyle=rail; ctx.lineWidth=2.8;
-    ctx.beginPath(); ctx.moveTo(f.x1,f.y1); ctx.lineTo(f.x2,f.y2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(f.x1,f.y1-8); ctx.lineTo(f.x2,f.y2-8); ctx.stroke();
-    /* столбы чаще и выше — именно они читаются как «сюда нельзя» */
-    const segs=Math.max(3,Math.round(Math.hypot(f.x2-f.x1,f.y2-f.y1)/26));
+    /* стойки эмиттеров — они и держат барьер */
+    const segs=Math.max(2,Math.round(Math.hypot(f.x2-f.x1,f.y2-f.y1)/34));
     for(let k=0;k<=segs;k++){ const t2=k/segs, px=lerp(f.x1,f.x2,t2), py=lerp(f.y1,f.y2,t2);
-      ctx.strokeStyle='rgba(18,16,14,.85)'; ctx.lineWidth=6.4;
-      ctx.beginPath(); ctx.moveTo(px,py+6); ctx.lineTo(px,py-14); ctx.stroke();
-      ctx.strokeStyle=post; ctx.lineWidth=3.4;
-      ctx.beginPath(); ctx.moveTo(px,py+5); ctx.lineTo(px,py-13); ctx.stroke(); }
+      ctx.strokeStyle='rgba(16,18,22,.9)'; ctx.lineWidth=7;
+      ctx.beginPath(); ctx.moveTo(px,py+6); ctx.lineTo(px,py-16); ctx.stroke();
+      ctx.strokeStyle='#5f6672'; ctx.lineWidth=4;
+      ctx.beginPath(); ctx.moveTo(px,py+5); ctx.lineTo(px,py-15); ctx.stroke();
+      ctx.fillStyle='#9fe8ff'; ctx.globalAlpha=.55+.45*fl;
+      circle(px,py-17,2.6); ctx.fill(); ctx.globalAlpha=1; }
+    /* силовое поле между стойками: две дрожащие нити и свечение */
+    ctx.strokeStyle='rgba(120,220,255,.16)'; ctx.lineWidth=13;
+    ctx.beginPath(); ctx.moveTo(f.x1,f.y1-9); ctx.lineTo(f.x2,f.y2-9); ctx.stroke();
+    for(const [off,al,wd] of [[-6,.55,1.6],[-12,.38,1.2]]){
+      ctx.strokeStyle='rgba(159,232,255,'+(al*fl+.2)+')'; ctx.lineWidth=wd;
+      ctx.beginPath();
+      const n2=6;
+      for(let k=0;k<=n2;k++){ const t2=k/n2;
+        const px=lerp(f.x1,f.x2,t2), py=lerp(f.y1,f.y2,t2)+off+Math.sin(T*7+t2*9+(f.ph||0))*1.6;
+        k?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+      ctx.stroke(); }
     ctx.lineCap='butt';
   }
 
@@ -3675,8 +3724,8 @@ function render(){
       const col=hp3.kind==='turret'?'#ffd94a':'#8fb8ff';
       softGlow(hp3.x,hp3.y,20,hp3.kind==='turret'?'rgba(255,217,74,.45)':'rgba(143,184,255,.45)',.5);
       ctx.fillStyle='#33322a';
-      ctx.beginPath(); ctx.roundRect(hp3.x-6,hp3.y-6,12,12,4); ctx.fill();
-      ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.lineWidth=1.6; ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(hp3.x-7,hp3.y-7,14,14,5); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1.3; ctx.stroke();
       ctx.fillStyle=col;
       ctx.beginPath(); ctx.roundRect(hp3.x-3.2,hp3.y-3.2,6.4,6.4,2.2); ctx.fill();
       ctx.fillStyle='rgba(255,255,255,.55)';
@@ -3684,12 +3733,6 @@ function render(){
     }
   }
 
-  if(W.drone&&W.cls==='builder'){
-    const dr=W.drone;
-    softGlow(dr.x,dr.y,26,'rgba(255,217,74,.55)',.5);
-    ctx.fillStyle='#3c3a2c'; ctx.beginPath(); ctx.roundRect(dr.x-7,dr.y-7,14,14,5); ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1.3; ctx.stroke();
-    ctx.fillStyle='#ffd94a'; ctx.beginPath(); ctx.roundRect(dr.x-3.5,dr.y-3.5,7,7,2.5); ctx.fill(); }
 
   /* дрон-медик и поле */
   const md=W.weapons.medic;
@@ -4285,10 +4328,14 @@ function drawBuild(b,T){
       ctx.fillStyle=i%2?'#4d4b3c':'#5c5946'; ctx.fill(); }
     circle(b.x,b.y,b.r*(.45+u*.55)); ctx.fillStyle='#33322a'; ctx.fill();
     const pu=.5+Math.sin(T*3+b.ph)*.5;
-    circle(b.x,b.y,(b.r*.38+pu*2)*u); ctx.fillStyle=A.col; ctx.fill();
-    softGlow(b.x,b.y,b.r*2.6,A.col,(.3+pu*.2)*u);
-    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='700 12px '+uiFont();
-    ctx.globalAlpha=(.75+fade*.25)*u; ctx.fillText(A.glyph,b.x,b.y+4.5); ctx.globalAlpha=.45+fade*.55;
+    /* размер ядра постоянный — пульсирует только яркость, как лампа */
+    circle(b.x,b.y,b.r*.42*u); ctx.fillStyle=A.col; ctx.globalAlpha=(.55+pu*.45)*u; ctx.fill();
+    ctx.globalAlpha=1;
+    softGlow(b.x,b.y,b.r*2.6,A.col,(.22+pu*.28)*u);
+    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='700 12px '+uiFont();
+    ctx.globalAlpha=(.75+fade*.25)*u; ctx.fillText(A.glyph,b.x,b.y);
+    ctx.textBaseline='alphabetic'; ctx.globalAlpha=.45+fade*.55;
     if(u>=1){ ctx.strokeStyle=A.col; ctx.globalAlpha=.18; ctx.lineWidth=2;
       ctx.setLineDash([9,9]); ctx.lineDashOffset=-T*12; circle(b.x,b.y,R); ctx.stroke(); ctx.setLineDash([]);
       ctx.globalAlpha=.45+fade*.55; }
@@ -4635,7 +4682,15 @@ function drawHero(p,T,C){
     ctx.fillStyle=C.accent; circle(-r*.14,-r*.06,r*.2); ctx.fill();
   }
   else if(W.cls==='builder'){
-    /* помощники рисуются отдельно, здесь только корпус */
+    // короткие опоры по кругу — корпус снова читается как машина, а не шар
+    ctx.strokeStyle='#4f4d3c'; ctx.lineWidth=r*.26; ctx.lineCap='round';
+    for(let i=0;i<4;i++){ const a=T*.5+i*TAU/4+Math.PI/4;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a)*r*.82,Math.sin(a)*r*.82);
+      ctx.lineTo(Math.cos(a)*r*1.32,Math.sin(a)*r*1.32); ctx.stroke(); }
+    ctx.lineCap='butt';
+    ctx.fillStyle='#3c3a2c';
+    for(let i=0;i<4;i++){ const a=T*.5+i*TAU/4+Math.PI/4;
+      circle(Math.cos(a)*r*1.38,Math.sin(a)*r*1.38,r*.16); ctx.fill(); }
     ctx.fillStyle='#33322a'; circle(0,0,r*1); ctx.fill();
     ctx.fillStyle='#4d4b3c'; circle(0,0,r*.82); ctx.fill();
     // радиальные секции
@@ -4646,7 +4701,11 @@ function drawHero(p,T,C){
     const pu=.5+Math.sin(T*2.6)*.5;
     ctx.fillStyle=C.color; circle(0,0,r*(.36+pu*.05)); ctx.fill();
     ctx.fillStyle='#fff8d0'; circle(-r*.06,-r*.08,r*.15); ctx.fill();
-    /* манипулятор убран: за огонь теперь отвечают помощники вокруг корпуса */
+    // короткий манипулятор к прицелу
+    ctx.rotate(p.ang);
+    ctx.strokeStyle='#5d5a48'; ctx.lineWidth=r*.28; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(r*.35,0); ctx.lineTo(r*.85,0); ctx.stroke(); ctx.lineCap='butt';
+    ctx.fillStyle=C.color; circle(r*.92,0,r*.15); ctx.fill();
   }
   else { /* spore */
     // жгуты тянутся против движения
@@ -4925,11 +4984,14 @@ function syncHud(){ if(!W)return; const p=W.p;
     if(sf&&sf!==NULLEL){ const on=p.shMax>0;
       if(sf.hidden===on) sf.hidden=!on;
       if(on) sf.style.transform='scaleX('+clamp(p.sh/p.hpMax,0,1)+')'; } }
-  el('hpTxt').textContent=Math.max(0,Math.ceil(p.hp))+' / '+Math.round(p.hpMax)+(p.shMax>0?'  +'+Math.ceil(p.sh):'');
+  el('hpTxt').innerHTML='<span style="color:#ef8a72">'+Math.max(0,Math.ceil(p.hp))+' / '+Math.round(p.hpMax)+'</span>'
+    +(p.shMax>0?' <span style="color:#7cc4ff">+'+Math.ceil(p.sh)+'</span>':'');
   el('xpFill').style.transform='scaleX('+clamp(p.xp/p.xpNext,0,1)+')';
   const lb=el('lvlBtn');
   if(lb&&lb!==NULLEL){
-    const want = pendingLevels>0 && running && !paused
+    /* если всё уже на максимуме, кнопка не нужна: иначе она превращалась
+       в бесплатное лечение */
+    const want = pendingLevels>0 && running && !paused && anyUpgradeLeft()
       && !el('lvlScreen').classList.contains('on') && !el('relicScreen').classList.contains('on');
     if(lb.hidden===want) lb.hidden=!want;
     if(want){ el('lvlBtnT').textContent=U('lvlReady');
@@ -4992,8 +5054,14 @@ function renderObjectives(){ if(!W)return;
   const M=MISSIONS.find(m=>m.id===W.mid);
   el('mName').textContent=L(M.name);
   if(!W.goals.length){ el('objList').innerHTML='<div class="obj"><span>'+U('noGoals')+'</span></div>'; return; }
-  el('objList').innerHTML=W.goals.map(g=>
-    `<div class="obj ${g.done?'done':''}"><div class="tick">${g.done?'✓':''}</div><span>${GOAL_TXT[g.t](g)}</span></div>`).join(''); }
+  let firstOpen=true;
+  el('objList').innerHTML=W.goals.map(g=>{
+    /* первую невыполненную помечаем — её видно и в свёрнутом виде */
+    const fc=(!g.done&&firstOpen)?(firstOpen=false,' first'):'';
+    return `<div class="obj ${g.done?'done':''}${fc}"><div class="tick">${g.done?'✓':''}</div><span>${GOAL_TXT[g.t](g)}</span></div>`;
+  }).join('');
+  if(firstOpen){ const f2=el('objList').querySelector('.obj');
+    if(f2&&f2!==NULLEL) f2.classList.add('first'); } }
 
 /* ============================================================== ЦИКЛ */
 let TICK=0,running=false,paused=false,last=0,acc=0,objTick=0;
@@ -5098,6 +5166,14 @@ function buildMenus(){
       <div class="bd"><h3>${L(c.name)}</h3><div class="role">${L(c.role)}</div>
       <p>${L(c.tag)}</p><ul>${c.bullets.map(b=>'<li>'+L(b)+'</li>').join('')}</ul></div></div>`; }).join('');
   makeRail('clsGrid');
+  /* язык равняем по правому краю последней карточки, а не по краю экрана */
+  requestAnimationFrame(()=>{ try{
+    const lb=el('langBar'), hd=el('clsHead'), cs=document.querySelectorAll('#clsGrid .opt');
+    if(lb&&hd&&cs.length&&lb!==NULLEL&&innerWidth>620){
+      const last=cs[cs.length-1].getBoundingClientRect(), hr=hd.getBoundingClientRect();
+      const right=Math.max(0,hr.right-last.right);
+      lb.style.right=Math.round(right)+'px';
+    } }catch(e){} });
   el('clsGrid').querySelectorAll('.opt').forEach(n=>{
     heroPreview(n.dataset.id,n.querySelector('canvas'));
     const go=()=>{ selCls=n.dataset.id;
@@ -5188,6 +5264,19 @@ function railSync(g){
   setTimeout(upd, 120); setTimeout(upd, 500);
 }
 
+/* описание показывается отдельным окном поверх всего и гаснет от тапа где угодно */
+function showInfo(title,text){
+  const p=el('infoPop'); if(!p||p===NULLEL) return;
+  let v=el('infoVeil');
+  if(!v||v===NULLEL){ v=document.createElement('div'); v.id='infoVeil'; document.body.appendChild(v); }
+  el('infoTitle').textContent=title||''; el('infoText').textContent=text||'';
+  p.hidden=false; v.hidden=false; S.ready();
+  const close=()=>{ p.hidden=true; v.hidden=true;
+    removeEventListener('pointerdown',close,true); removeEventListener('keydown',close,true); };
+  setTimeout(()=>{ addEventListener('pointerdown',close,true);
+                   addEventListener('keydown',close,true); },0);
+}
+
 function markScroll(){
   requestAnimationFrame(()=>{ try{
     document.querySelectorAll('.screen.on').forEach(s=>{ if(s.scrollTop<2) s.scrollTop=0; });
@@ -5225,7 +5314,8 @@ function renderAbils(){
       <p>${L(d.info||['',''])||(d.desc?d.desc(1):'')}</p></div>`; }).join('');
   el('abGrid').querySelectorAll('.abcard .inf').forEach(b=>{
     const info=e=>{ e.stopPropagation(); e.preventDefault();
-      b.closest('.abcard').classList.toggle('open'); markScroll(); S.ready(); };
+      const card=b.closest('.abcard'); const d2=ABILITIES[card.dataset.id];
+      showInfo(L(d2.name), L(d2.info||['','']) || (d2.desc?d2.desc(1):'')); };
     b.addEventListener('click',info);
     b.addEventListener('pointerdown',e=>e.stopPropagation());
   });
@@ -5408,6 +5498,15 @@ function togglePause(){
   show(paused?'pauseScreen':null); clearMouse();
 }
 el('pauseBtn').addEventListener('click',togglePause);
+/* тап по списку задач сворачивает и разворачивает его — так миникарте хватает места */
+{ const ob=el('objBox');
+  if(ob&&ob!==NULLEL){
+    /* TOUCH объявляется ниже по файлу, поэтому проверяем признаки напрямую */
+    if(innerHeight<620||('ontouchstart' in window)||(navigator.maxTouchPoints||0)>0)
+      ob.classList.add('min');
+    ob.addEventListener('click',e=>{ e.stopPropagation(); ob.classList.toggle('min'); S.ready(); });
+    ob.addEventListener('pointerdown',e=>e.stopPropagation());
+  } }
 el('lvlBtn').addEventListener('click',()=>{
   if(pendingLevels>0 && running && !paused
      && !el('lvlScreen').classList.contains('on')
@@ -5546,7 +5645,7 @@ const TC_AIM_R = 1.5;      /* правый стик шире левого — п
 const TC_AIMDEAD = 26;     /* с какого сдвига палец считается прицеливанием */
 const TC_CURS = 1.7;       /* во сколько раз курсор быстрее пальца */
 const TC_AIMK = 2.6;       /* во сколько раз ход пальца длиннее хода прицела */
-const TC_AIMMAX = 340;     /* дальше этого способности всё равно не бьют */
+const TC_AIMMAX = 620;     /* предел наводки: дальше способности не достают */
 const TC_FIRE = 150;       /* сколько мс держится импульс выстрела */
 
 function tcInit(){
@@ -5608,11 +5707,14 @@ function tcInit(){
       if(!slot || done || e.pointerId !== TC.aimId) return;
       e.preventDefault();
       let dx = e.clientX - TC.aimOx, dy = e.clientY - TC.aimOy;
-      if(Math.hypot(dx,dy) < TC_AIMDEAD){ TC.aimOn = false; return; }
+      /* наводка уже началась — возврат пальца к кнопке её не отменяет,
+         иначе прицел прыгал обратно на прежнее место */
+      if(Math.hypot(dx,dy) < TC_AIMDEAD){ if(!TC.aimOn) return; }
+      else TC.aimOn = true;
       dx *= TC_AIMK / ZOOM; dy *= TC_AIMK / ZOOM;
       const d = Math.hypot(dx,dy);
       if(d > TC_AIMMAX){ dx = dx/d*TC_AIMMAX; dy = dy/d*TC_AIMMAX; }
-      TC.aimOn = true; TC.aimDX = dx; TC.aimDY = dy;
+      TC.aimDX = dx; TC.aimDY = dy;
     });
     const finish = (fire)=>{
       if(done) return; done = true;
@@ -5723,6 +5825,18 @@ addEventListener('dblclick', e=>{ if(e.cancelable) e.preventDefault(); }, {passi
 addEventListener('pointerdown', e=>{ if(e.pointerType==='touch') tcEnable(); }, true);
 
 /* джойстик живёт только в бою: в меню он перехватывал касания */
+/* осталось ли хоть одно не прокачанное до предела оснащение */
+function anyUpgradeLeft(){
+  if(!W) return false;
+  try{
+    for(const id in WEAPONS){ const d=WEAPONS[id];
+      if(d.cls&&d.cls!=='any'&&d.cls!==W.cls) continue;
+      const w=W.weapons[id];
+      if(!w || w.lv < (d.max||5)) return true; }
+  }catch(e){ return true; }
+  return false;
+}
+
 function tcSync(){
   const lb=el('lvlBtn');
   if(lb && lb!==NULLEL){
