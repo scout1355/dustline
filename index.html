@@ -40,6 +40,8 @@
     width:min(340px,44vw);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
   .bar>i{position:absolute;inset:0;border-radius:999px;transform-origin:left;transform:scaleX(0);transition:transform .1s linear}
   #hpFill{background:linear-gradient(90deg,#c04b49,#ef8a72)}
+  #shFill{background:linear-gradient(90deg,#3f8fd0,#9fd8ff);opacity:.95}
+  #shFill[hidden]{display:none}
   #xpFill{background:linear-gradient(90deg,var(--xp),#a9dcff)}
   #hpTxt{font-size:11px;color:var(--dim)}
 
@@ -294,7 +296,7 @@
       <div class="pill" id="relicPill" hidden></div>
       <div class="pill" id="carryPill" hidden style="color:#7fd98a"></div>
     </div>
-    <div class="bar"><i id="hpFill"></i></div>
+    <div class="bar"><i id="hpFill"></i><i id="shFill" hidden></i></div>
     <div id="hpTxt"></div>
     <div class="bar" style="height:6px"><i id="xpFill"></i></div>
     <div class="bar" id="enBar" hidden style="height:6px;max-width:220px"><i id="enFill" style="background:linear-gradient(90deg,#5cc8ff,#bfe9ff)"></i></div>
@@ -759,7 +761,7 @@ const CLASSES={
  vector:{name:['ВЕКТОР','VECTOR'],role:['Энергетический корпус','Energy chassis'],color:'#5cc8ff',accent:'#bde9ff',
   tag:['Парящее ядро в кольцах-стабилизаторах. Точность, контроль пространства, мгновенные перемещения.',
        'A hovering core inside stabiliser rings. Precision, space control, instant repositioning.'],
-  start:'beam',ab1:'blink',ab2:'singularity',hp:96,speed:232,
+  start:'beam',ab1:'blink',ab2:'singularity',hp:72,shield:46,speed:232,
   abils:['blink','singularity','shield','lance','focus','storm','coil'],
   bullets:[['Луч наращивает урон, пока держит цель','The beam ramps up while it holds a target'],
            ['ЛКМ — <b>фазовый скачок</b>, ПКМ — <b>сингулярность</b>','LMB — <b>phase jump</b>, RMB — <b>singularity</b>'],
@@ -886,7 +888,7 @@ function newWorld(cls,mid,seed){
   const M=MISSIONS.find(m=>m.id===mid), C=CLASSES[cls], B=BIOMES[M.biome];
   const size=5200,c=size/2;
   const w={seed,cls,mid,biome:M.biome,size,t:0,kills:0,over:false,won:false,spawnAcc:0,bossT:M.endless?95:70,bossN:0,
-    p:{x:c,y:c,r:16,ang:0,hp:C.hp,hpMax:C.hp,speed:C.speed,dashCd:0,dashT:0,ifr:0,
+    p:{x:c,y:c,r:16,ang:0,hp:C.hp,hpMax:C.hp,sh:C.shield||0,shMax:C.shield||0,shT:99,speed:C.speed,dashCd:0,dashT:0,ifr:0,
        xp:0,level:1,xpNext:6,rerolls:1,ab1Cd:0,ab2Cd:0,ab1Max:1,ab2Max:1,energy:100,energyMax:100,
        vx:0,vy:0,lean:0,walk:0},
     weapons:{},pas:{power:0,rate:0,speed:0,hull:0,magnet:0,regen:0,armor:0,area:0,cool:0},
@@ -1473,8 +1475,12 @@ const ABILITIES={
              `${l} targets held ahead of you, ${34+l*16} damage per second, ${30+l*5} energy per second.`),
   use(l,dt){
     const p=W.p, cost=(30+l*5)*dt;
-    if(p.energy<cost){ if(rng()<.05)toast(tt('ЭНЕРГИЯ ИСЧЕРПАНА','ENERGY DRAINED')); return; }
-    p.energy-=cost;
+    /* ток питается от щита; когда тот пуст — от энергии */
+    if(p.shMax>0&&p.sh>0){ p.sh=Math.max(0,p.sh-cost*.55); p.shT=0; }
+    else {
+      if(p.energy<cost){ if(rng()<.05)toast(tt('ЭНЕРГИЯ ИСЧЕРПАНА','ENERGY DRAINED')); return; }
+      p.energy-=cost;
+    }
     /* первая цель — только впереди: ток идёт туда, куда смотрит корпус */
     let src=p, hit=[];
     for(let h=0;h<l;h++){
@@ -2047,6 +2053,9 @@ function update(dt){
   if(W.lock>0)W.lock-=dt;
   const C=CLASSES[W.cls];
   p.energy=Math.min(p.energyMax,p.energy+14*dt);
+  /* восстановление только после пяти секунд без урона */
+  if(p.shMax>0){ p.shT=(p.shT||0)+dt;
+    if(p.shT>5) p.sh=Math.min(p.shMax,p.sh+p.shMax*.22*dt); }
   for(const slot of ['ab1','ab2']){
     const A=W[slot], d=ABILITIES[A.id];
     if(!d)continue;
@@ -2909,7 +2918,16 @@ function hurtPlayer(d){ const p=W.p; if(p.ifr>0)return;
     for(let i=0;i<lt.length;i++){ const e=lt[i];
       if(!e.dead&&Math.hypot(e.x-p.x,e.y-p.y)<110) hurt(e,back,'thorns'); }
     fx.ring(p.x,p.y,86,'#ff7a9a'); }
-  d=Math.max(1,d-W.pas.armor*2); p.hp-=d; W.dmgIn+=d; p.ifr=.6; shake(7); S.hurt();
+  d=Math.max(1,d-W.pas.armor*2);
+  W.dmgIn+=d; p.ifr=.6; shake(7); p.shT=0;
+  /* щит принимает удар первым, в корпус уходит остаток */
+  if(p.shMax>0&&p.sh>0){
+    const taken=Math.min(p.sh,d); p.sh-=taken; d-=taken;
+    fx.ring(p.x,p.y,p.r*2.2,'#7cc4ff');
+    popup(p.x,p.y-28,'-'+Math.round(taken),'#7cc4ff'); S.blink();
+    if(d<=0){ if(p.sh<=0){ S.thud(); fx.burst(p.x,p.y,'#7cc4ff',10,90); } return; }
+  }
+  p.hp-=d; S.hurt();
   popup(p.x,p.y-28,'-'+Math.round(d),'#e0605e'); if(p.hp<=0)gameOver(U('failed')); }
 function gainXp(n,silent){ const p=W.p; p.xp+=n; if(!silent)S.pick();
   while(p.xp>=p.xpNext){ p.xp-=p.xpNext; p.level++;
@@ -4903,7 +4921,11 @@ function syncHud(){ if(!W)return; const p=W.p;
   el('clock').textContent=fmt(W.t);
   el('lvl').textContent=p.level; el('kills').textContent=W.kills;
   el('hpFill').style.transform='scaleX('+clamp(p.hp/p.hpMax,0,1)+')';
-  el('hpTxt').textContent=Math.max(0,Math.ceil(p.hp))+' / '+Math.round(p.hpMax);
+  { const sf=el('shFill');
+    if(sf&&sf!==NULLEL){ const on=p.shMax>0;
+      if(sf.hidden===on) sf.hidden=!on;
+      if(on) sf.style.transform='scaleX('+clamp(p.sh/p.hpMax,0,1)+')'; } }
+  el('hpTxt').textContent=Math.max(0,Math.ceil(p.hp))+' / '+Math.round(p.hpMax)+(p.shMax>0?'  +'+Math.ceil(p.sh):'');
   el('xpFill').style.transform='scaleX('+clamp(p.xp/p.xpNext,0,1)+')';
   const lb=el('lvlBtn');
   if(lb&&lb!==NULLEL){
