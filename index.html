@@ -117,9 +117,7 @@
   .grid.snap{flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x mandatory;
     justify-content:flex-start;padding:4px 40px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .grid.snap::-webkit-scrollbar{display:none}
-  .grid.snap > *{scroll-snap-align:center;flex:0 0 auto;transform:translateZ(0);
-    -webkit-backface-visibility:hidden;backface-visibility:hidden}
-  @media (hover:none){ .grid.snap .opt:hover{transform:translateZ(0)} }
+  .grid.snap > *{scroll-snap-align:center;flex:0 0 auto}
   .railBtn{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:64px;
     display:grid;place-items:center;font-size:22px;color:#dde2ea;cursor:pointer;user-select:none;
     background:rgba(13,16,20,.9);border:1px solid rgba(221,226,234,.13);border-radius:11px;z-index:2;
@@ -139,7 +137,7 @@
   .opt h3{margin:0 0 2px;font-size:16px;color:#fff;font-weight:650}
   .opt .role{font-size:11px;color:currentColor;margin-bottom:9px;opacity:.92}
   .opt .pts{font-size:10.5px;color:var(--gold);margin:-5px 0 8px;letter-spacing:.04em}
-  .rbadge{position:absolute;top:8px;left:8px;z-index:2;display:flex;align-items:center;gap:4px;
+  .rbadge{position:absolute;top:8px;left:8px;z-index:5;display:flex;align-items:center;gap:4px;
     padding:3px 8px 3px 6px;border-radius:9px;font-size:10px;letter-spacing:.06em;
     color:#ffd76a;background:rgba(20,16,8,.78);border:1px solid rgba(240,193,75,.45)}
   .rbadge span{font-size:11px;line-height:1}
@@ -151,7 +149,7 @@
   .lockx{position:absolute;inset:0;background:rgba(12,14,17,.78);display:grid;place-items:center;
     font-size:11px;color:var(--dim);letter-spacing:.06em;text-align:center;padding:18px;border-radius:20px}
   .opt.locked{cursor:not-allowed}
-  .badge{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.5);border-radius:999px;padding:3px 9px;font-size:10px;color:var(--gold)}
+  .badge{position:absolute;top:10px;right:10px;z-index:5;background:rgba(0,0,0,.5);border-radius:999px;padding:3px 9px;font-size:10px;color:var(--gold)}
 
   #lvlHead{position:relative;display:flex;align-items:baseline;justify-content:center;padding:0 26px}
   #lvlHead .step{position:absolute;left:26px;bottom:4px;margin:0;transition:left .12s}
@@ -287,7 +285,8 @@
   #briefR h1{text-align:left;margin-bottom:6px}
   #briefR .sub{margin:0 0 12px;text-align:left;max-width:none}
   #briefGoals{justify-content:flex-start}
-  .bgoal{border-radius:10px;border-left:3px solid var(--gold);background:rgba(255,196,74,.07);padding:8px 14px}
+  .bgoal{border-radius:10px;background:rgba(255,196,74,.07);padding:8px 14px}
+  .bgoal::before{content:"◆";color:var(--gold);margin-right:8px;font-size:10px}
   .bgoal b{color:var(--gold);font-weight:650}
   @media (max-width:760px){
     #briefCols{flex-direction:column;gap:12px;text-align:center}
@@ -901,11 +900,11 @@ const MISSIONS=[
   brief:['Первый выезд на полигон. Проверка систем под огнём.','First sortie. Systems check under live fire.'],
   planet:["КЕРИД-4", "KERID-4"],story:["Ретрансляторы Тихой Цепи гаснут один за другим — семь миров уже молчат. Вас высаживают на учебную луну: проверить корпус боем, прежде чем идти дальше по цепи. Диспетчер обещает, что здесь «только старые дроны». Диспетчер ошибается.", "The relays of the Silent Chain are going dark one by one — seven worlds have already gone quiet. They drop you on a training moon to test the hull in live fire before you follow the chain outward. Control promises 'just old drones' down there. Control is wrong."],beats:[[45, ["ДИСПЕТЧЕР: ЭТО НЕ ДРОНЫ", "CONTROL: THOSE ARE NOT DRONES"]], [110, ["ДИСПЕТЧЕР: СИГНАЛ ИДЁТ ИЗ-ПОД ПЛИТ", "CONTROL: THE SIGNAL COMES FROM UNDER THE SLABS"]], [165, ["ДИСПЕТЧЕР: ДЕРЖИТЕСЬ, ЭВАКУАЦИЯ НА ПОДХОДЕ", "CONTROL: HOLD ON, EVAC INBOUND"]]],
   goals:[{t:'kill',n:120},{t:'survive',n:180}]},
- {id:'m2',mix:['crawler','brood','spitter','arachne','bloater'],name:['Расчистка периметра','Clearing the Perimeter'],biome:'ruins',elite:1,
+ {id:'m2',relic:1,mix:['crawler','brood','spitter','arachne','bloater'],name:['Расчистка периметра','Clearing the Perimeter'],biome:'ruins',elite:1,
   brief:['В руинах закрепились гнёзда. Выжечь и удержаться.','Nests have taken root in the ruins. Burn them and hold.'],
   planet:["АРГЕЛЛА", "ARGELLA"],story:["Аргелла замолчала первой. Город стоит целым, но пустым: двери открыты, машины заведены, людей нет. В подвалах ретранслятора выросли кладки — они и глушат сигнал. Выжгите их и продержитесь, пока сканер снимет карту заражения.", "Argella went quiet first. The city still stands, but empty: doors open, engines running, no people. Clutches have grown in the relay basements, and they are what jams the signal. Burn them and hold while the scanner maps the infestation."],beats:[[40, ["СКАНЕР: КЛАДКИ СВЯЗАНЫ ГРИБНИЦЕЙ", "SCANNER: THE CLUTCHES SHARE ONE MYCELIUM"]], [120, ["СКАНЕР: ОНИ ЧУВСТВУЮТ, ЧТО ИХ ЖГУТ", "SCANNER: THEY FEEL THAT YOU ARE BURNING THEM"]], [180, ["ДИСПЕТЧЕР: КАРТА ПОЧТИ ГОТОВА", "CONTROL: THE MAP IS ALMOST READY"]]],
   goals:[{t:'nests',n:3},{t:'survive',n:210}]},
- {id:'m3',mix:['stalker','spitter','wyrm','hulk','bloater'],name:['Снабжение','Supply Run'],biome:'dust',elite:2,
+ {id:'m3',relic:1,mix:['stalker','spitter','wyrm','hulk','bloater'],name:['Снабжение','Supply Run'],biome:'dust',elite:2,
   brief:['Груз разбросан по пустоши. Собрать и уйти живым.','Cargo is scattered across the wastes. Collect it and get out alive.'],
   planet:["САЖЕНЬ", "SAZHEN"],story:["Конвой с образцами не дошёл до орбиты — его разбросало по пустоши. В контейнерах то, ради чего Цепь вообще строили: живая ткань, которая помнит сигнал. Соберите груз и уходите, пока к нему не пришёл кто-то крупнее вас.", "The sample convoy never made orbit — it lies scattered across the wastes. Those containers hold the reason the Chain was built at all: living tissue that remembers a signal. Collect the cargo and leave before something bigger comes for it."],beats:[[30, ["ГРУЗ ФОНИТ — ОНИ ИДУТ НА ЗАПАХ", "THE CARGO IS LEAKING — THEY TRACK THE SCENT"]], [95, ["СЕЙСМИКА: ЧТО-ТО КРУПНОЕ ПОД ПЕСКОМ", "SEISMICS: SOMETHING LARGE UNDER THE SAND"]]],
   goals:[{t:'crates',n:6},{t:'mine',n:6},{t:'boss',n:1}]},
@@ -2347,12 +2346,12 @@ function update(dt){
   if(W.eliteLeft>0){ W.eliteT-=dt; if(W.eliteT<=0){
     const M0=MISSIONS.find(m=>m.id===W.mid);
     /* трофей несёт последняя элита задания, а не первая */
-    spawnElite(!M0.endless && W.eliteLeft===1 && !W.trophySpawned);
+    spawnElite(!!M0.relic && !M0.endless && W.eliteLeft===1 && !W.trophySpawned);
     if(!M0.endless && W.eliteLeft===1) W.trophySpawned=true;
     W.eliteLeft--; W.eliteT=(M0.endless?85:62); } }
   /* в бесконечном режиме носитель трофея приходит на девятой минуте */
   { const M1=MISSIONS.find(m=>m.id===W.mid);
-    if(M1&&M1.endless&&!W.trophySpawned&&W.t>=540){ W.trophySpawned=true; spawnElite(true); } }
+    if(M1&&M1.endless&&M1.relic&&!W.trophySpawned&&W.t>=540){ W.trophySpawned=true; spawnElite(true); } }
 
   waves(dt);
   W.bossT-=dt;
@@ -5558,10 +5557,13 @@ function unlocked(i){ if(i===0)return true;
 /* значок трофея: если миссия его даёт — жёлтый кубок с подписью;
    если этот герой его уже взял здесь — значок взятого трофея, без текста */
 function relicBadge(m){
-  if(!m.elite) return '';
+  /* взятый раньше трофей показываем всегда — это история героя */
+  const had=progress.relicBy&&selCls&&progress.relicBy[selCls]&&progress.relicBy[selCls][m.id];
+  if(!m.relic && !had) return '';
   const got=progress.relicBy&&selCls&&progress.relicBy[selCls]&&progress.relicBy[selCls][m.id];
   if(got){ const r=RELICS.find(x=>x.id===got);
     if(r) return '<div class="rbadge got" title="'+esc(L(r.name))+'" style="color:'+r.col+'">'+r.glyph+'</div>'; }
+  if(!m.relic) return '';
   return '<div class="rbadge"><span>🏆</span>'+U('relicShort')+'</div>';
 }
 function renderMissions(){
@@ -5572,12 +5574,13 @@ function renderMissions(){
         <canvas></canvas></div>
       ${done?'<div class="badge">'+U('done')+'</div>':''}
       ${relicBadge(m)}
-      <div class="bd"><h3>${L(m.name)}</h3><div class="role">${L(B.name)} · ${U('xpN')} ×${B.xp.toFixed(2)} · ${U('densN')} ×${B.spawn.toFixed(2)}</div>
+      <div class="bd"><h3>${L(m.name)}</h3>
       <p>${L(m.brief)}</p><ul class="mgoals">${goals}</ul></div>
       ${ok?'':'<div class="lockx">'+U('locked')+'</div>'}</div>`; }).join('');
   makeRail('misGrid');
   el('misGrid').querySelectorAll('.opt').forEach((n,i)=>{
-    biomePreview(MISSIONS[i].biome,n.querySelector('canvas'));
+    biomePreview(MISSIONS[i].biome,n.querySelector('canvas'),artZones(MISSIONS[i]));
+    try{ missionArt(MISSIONS[i],n.querySelector('canvas')); }catch(e){}
     if(n.classList.contains('locked'))return;
     const go=()=>{ selMis=n.dataset.id;
       el('misGrid').querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));
@@ -5585,7 +5588,7 @@ function renderMissions(){
     n.addEventListener('click',go);
     n.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();go();} }); });
 }
-function biomePreview(bid,cvs){
+function biomePreview(bid,cvs,avoid){
   const B=BIOMES[bid], g=cvs.getContext('2d');
   cvs.width=232*2; cvs.height=104*2; g.scale(2,2);
   const pr=mulberry32(bid.length*77+3);
@@ -5595,11 +5598,126 @@ function biomePreview(bid,cvs){
     g.beginPath(); g.arc(pr()*232,pr()*104,pr()*1.6+.3,0,TAU); g.fill(); }
   g.globalAlpha=1;
   for(let i=0;i<12;i++){ const x=pr()*232,y=pr()*104,r=pr()*14+7;
+    /* камень, который лёг бы под предмет задания, не рисуем — иначе ящик «стоит» на камне */
+    const ext=bid==='dust'?r*1.6:r;
+    if(avoid&&avoid.some(z=>Math.hypot(x-z.x,y-z.y)<z.r+ext)){ if(bid==='dust')pr(); continue; }
     g.fillStyle='rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(x,y+r*.5,r,r*.45,0,0,TAU); g.fill();
     if(bid==='blight'){ g.fillStyle='rgba(120,220,150,.35)'; g.beginPath(); g.arc(x,y,r*.5,0,TAU); g.fill(); }
     else if(bid==='dust'){ g.fillStyle=B.accent; g.beginPath(); g.ellipse(x,y,r*1.6,r*.4,pr()*3,0,TAU); g.fill(); }
     else { g.fillStyle=B.accent; g.beginPath(); g.arc(x,y,r*.55,0,TAU); g.fill(); } }
   g.fillStyle=B.fog; g.fillRect(0,0,232,104);
+}
+/* поверх местности — то, чем живёт задание: ящики, база с турелями, гнёзда, маяк, ядра.
+   Выбирается по целям миссии, поэтому новые задания получат картинку сами. */
+function artZones(m){
+  const has=t=>m.goals.some(q=>q.t===t), z=[];
+  if(has('crates')){ z.push({x:156,y:60,r:30}); if(has('mine')) z.push({x:200,y:46,r:20}); }
+  else if(m.base||has('hold')||has('protect')){ z.push({x:160,y:56,r:52});
+    if(has('protect')) z.push({x:206,y:16,r:16}); }   /* и место под луч маяка */
+  else if(m.cores){ for(const [x,y] of [[132,62],[168,38],[202,70]]) z.push({x,y,r:22}); }
+  else if(has('nests')){ z.push({x:144,y:62,r:24},{x:186,y:44,r:20}); if(has('boss')) z.push({x:176,y:84,r:16}); }
+  else z.push({x:168,y:56,r:48});
+  if(has('boss')) z.push({x:212,y:84,r:20});
+  return z;
+}
+function missionArt(m,cvs){
+  const g=cvs.getContext('2d'); if(!g)return;
+  const has=t=>m.goals.some(q=>q.t===t);
+  const pr=mulberry32((m.id||'x').length*131+7);
+  const shade=(x,y,rx,ry)=>{ g.fillStyle='rgba(0,0,0,.34)'; g.beginPath(); g.ellipse(x,y,rx,ry,0,0,TAU); g.fill(); };
+  const glow=(x,y,r,c,a)=>{ const rg=g.createRadialGradient(x,y,0,x,y,r); rg.addColorStop(0,c); rg.addColorStop(1,'rgba(0,0,0,0)');
+    g.globalAlpha=a; g.fillStyle=rg; g.beginPath(); g.arc(x,y,r,0,TAU); g.fill(); g.globalAlpha=1; };
+  const crate=(x,y,s)=>{ shade(x,y+s*.55,s*.78,s*.22);
+    const h2=s/2;
+    /* корпус, крышка светлее, металлические уголки и перетяжки — как грузовой контейнер */
+    g.fillStyle='#7d6034'; g.fillRect(x-h2,y-h2,s,s);
+    g.fillStyle='#9a7842'; g.fillRect(x-h2,y-h2,s,s*.22);
+    g.strokeStyle='#2e2110'; g.lineWidth=1.8; g.strokeRect(x-h2,y-h2,s,s);
+    g.strokeStyle='#e0b85a'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(x-h2+3,y-h2+s*.3); g.lineTo(x+h2-3,y+h2-3);
+    g.moveTo(x+h2-3,y-h2+s*.3); g.lineTo(x-h2+3,y+h2-3); g.stroke();
+    g.fillStyle='#c8cdd4';
+    for(const [cx2,cy2] of [[-1,-1],[1,-1],[-1,1],[1,1]]) g.fillRect(x+cx2*(h2-3)-2.5,y+cy2*(h2-3)-2.5,5,5); };
+  const turret=(x,y,s,a)=>{ shade(x,y+s*.7,s*1.1,s*.35);
+    g.strokeStyle='#2c2b24'; g.lineWidth=2.2; g.lineCap='round';
+    for(let k=0;k<3;k++){ const la=k*TAU/3+.5; g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(la)*s*1.2,y+Math.sin(la)*s*1.2); g.stroke(); }
+    g.fillStyle='#5a5846'; g.beginPath(); g.arc(x,y,s*.62,0,TAU); g.fill();
+    g.strokeStyle='#6a6a54'; g.lineWidth=2.4; g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*s*1.3,y+Math.sin(a)*s*1.3); g.stroke();
+    g.fillStyle='#ffd94a'; g.beginPath(); g.arc(x,y,s*.24,0,TAU); g.fill(); g.lineCap='butt'; };
+  const walls=(cx,cy,R,n,gate)=>{
+    const pts=[]; for(let k=0;k<n;k++){ const a=-Math.PI/2+k*TAU/n+TAU/(n*2);
+      pts.push([cx+Math.cos(a)*R, cy+Math.sin(a)*R*.72]); }
+    g.lineCap='round';
+    for(let k=0;k<n;k++){ const [x1,y1]=pts[k], [x2,y2]=pts[(k+1)%n];
+      if(k===gate){
+        g.globalAlpha=.3; g.strokeStyle='#9fd0ff'; g.lineWidth=7;
+        g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke(); g.globalAlpha=1;
+        g.lineWidth=2.6;
+        for(let q=0;q<6;q++){ const t1=q/6,t2=t1+1/6;
+          g.strokeStyle=q%2?'#e0c060':'#2c3038'; g.beginPath();
+          g.moveTo(x1+(x2-x1)*t1,y1+(y2-y1)*t1); g.lineTo(x1+(x2-x1)*t2,y1+(y2-y1)*t2); g.stroke(); }
+        continue; }
+      g.strokeStyle='rgba(0,0,0,.42)'; g.lineWidth=6.5;
+      g.beginPath(); g.moveTo(x1,y1+2); g.lineTo(x2,y2+2); g.stroke();
+      g.strokeStyle='#5a5f66'; g.lineWidth=5;
+      g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+      g.strokeStyle='rgba(255,255,255,.16)'; g.lineWidth=1.4;
+      g.beginPath(); g.moveTo(x1,y1-1.6); g.lineTo(x2,y2-1.6); g.stroke(); }
+    g.lineCap='butt'; };
+  const nest=(x,y,r)=>{ glow(x,y,r*2.2,'rgba(200,107,255,.55)',.8);
+    g.fillStyle='#6b4a75'; g.beginPath(); g.ellipse(x,y,r,r*.82,0,0,TAU); g.fill();
+    g.fillStyle='#b27ad0'; for(let k=0;k<5;k++){ g.beginPath(); g.arc(x+(pr()-.5)*r,y+(pr()-.5)*r*.7,r*.18,0,TAU); g.fill(); } };
+  const bug=(x,y,s,c,a)=>{ g.save(); g.translate(x,y); g.rotate(a);
+    g.strokeStyle='rgba(0,0,0,.55)'; g.lineWidth=1;
+    for(let k=-1;k<=1;k++){ g.beginPath(); g.moveTo(k*s*.35,0); g.lineTo(k*s*.5,-s*.75); g.moveTo(k*s*.35,0); g.lineTo(k*s*.5,s*.75); g.stroke(); }
+    g.fillStyle=c; g.beginPath(); g.ellipse(0,0,s*.8,s*.45,0,0,TAU); g.fill();
+    g.fillStyle='rgba(255,90,70,.9)'; g.beginPath(); g.arc(s*.62,0,s*.12,0,TAU); g.fill(); g.restore(); };
+
+  if(has('crates')){
+    /* груз и отмеченная точка закладки */
+    crate(156,60,30);
+    if(has('mine')){ g.strokeStyle='rgba(255,176,58,.9)'; g.lineWidth=2; g.setLineDash([4,3]);
+      g.beginPath(); g.arc(200,46,14,0,TAU); g.stroke(); g.setLineDash([]);
+      g.fillStyle='#ffb03a'; g.beginPath(); g.arc(200,46,3.2,0,TAU); g.fill(); }
+  } else if(has('hold')&&!has('protect')){
+    /* удерживаемая площадка, стена и две турели по краям */
+    walls(160,56,46,8,5);
+    g.fillStyle='rgba(240,193,75,.10)'; g.beginPath(); g.arc(160,56,18,0,TAU); g.fill();
+    g.strokeStyle='rgba(240,193,75,.8)'; g.lineWidth=1.5; g.setLineDash([4,3]);
+    g.beginPath(); g.arc(160,56,18,0,TAU); g.stroke(); g.setLineDash([]);
+    turret(136,50,7,-2.4); turret(184,50,7,-.7);
+  } else if(has('protect')){
+    /* маяк с лучом и стеной базы */
+    walls(160,56,46,8,5);
+    glow(160,46,30,'rgba(127,217,138,.6)',.7);
+    g.fillStyle='#3a4038'; g.fillRect(155,44,10,24);
+    g.fillStyle='#7fd98a'; g.beginPath(); g.moveTo(160,32); g.lineTo(167,44); g.lineTo(153,44); g.closePath(); g.fill();
+    g.globalAlpha=.3; g.fillStyle='#bff0c6';
+    g.beginPath(); g.moveTo(160,36); g.lineTo(204,10); g.lineTo(212,22); g.closePath(); g.fill(); g.globalAlpha=1;
+    turret(136,58,7,-2.4); turret(184,58,7,-.7);
+  } else if(m.cores){
+    /* три опоры, которые надо сберечь */
+    for(const [x,y] of [[132,62],[168,38],[202,70]]){
+      glow(x,y,30,'rgba(92,200,255,.6)',.85);
+      g.fillStyle='#3f5a6e'; g.beginPath();
+      for(let k=0;k<6;k++){ const a=k*TAU/6; g[k?'lineTo':'moveTo'](x+Math.cos(a)*13,y+Math.sin(a)*13); } g.closePath(); g.fill();
+      g.strokeStyle='#9fdcff'; g.lineWidth=1.6; g.stroke();
+      g.fillStyle='#d6f1ff'; g.beginPath(); g.arc(x,y,4.8,0,TAU); g.fill(); }
+    g.strokeStyle='rgba(143,214,255,.35)'; g.lineWidth=1; g.setLineDash([2,3]);
+    g.beginPath(); g.moveTo(132,62); g.lineTo(168,38); g.lineTo(202,70); g.closePath(); g.stroke(); g.setLineDash([]);
+  } else if(has('nests')){
+    nest(144,62,15); nest(186,44,12);
+    if(has('boss')) nest(176,84,10);
+  } else {
+    /* без особой цели — только те, с кем предстоит драться */
+    const spots=[[132,50],[158,72],[184,44],[206,68],[170,30]];
+    for(const [bx,by] of spots) bug(bx,by,10+pr()*3,'#9a7650',pr()*TAU);
+  }
+  /* крупный силуэт колосса, если в задании есть босс */
+  if(has('boss')){ g.globalAlpha=.8; g.fillStyle='#6e4a44';
+    g.beginPath(); g.ellipse(212,84,15,11,0,0,TAU); g.fill();
+    g.strokeStyle='rgba(0,0,0,.4)'; g.lineWidth=1.2; g.stroke();
+    g.fillStyle='#ff5a4a'; g.beginPath(); g.arc(221,82,2.4,0,TAU); g.arc(217,79,1.8,0,TAU); g.fill(); g.globalAlpha=1; }
 }
 buildMenus(); renderCodex(); renderAchs();
 document.querySelectorAll('.lang').forEach(b=>b.addEventListener('click',()=>{
