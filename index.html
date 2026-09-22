@@ -117,7 +117,9 @@
   .grid.snap{flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x mandatory;
     justify-content:flex-start;padding:4px 40px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .grid.snap::-webkit-scrollbar{display:none}
-  .grid.snap > *{scroll-snap-align:center;flex:0 0 auto}
+  .grid.snap > *{scroll-snap-align:center;flex:0 0 auto;transform:translateZ(0);
+    -webkit-backface-visibility:hidden;backface-visibility:hidden}
+  @media (hover:none){ .grid.snap .opt:hover{transform:translateZ(0)} }
   .railBtn{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:64px;
     display:grid;place-items:center;font-size:22px;color:#dde2ea;cursor:pointer;user-select:none;
     background:rgba(13,16,20,.9);border:1px solid rgba(221,226,234,.13);border-radius:11px;z-index:2;
@@ -157,6 +159,22 @@
   #slotInfo{color:#9d7bff;letter-spacing:.06em}
   @media (max-width:620px){ #lvlHead .step{position:static;margin:0 0 4px}
     #lvlHead{flex-direction:column;align-items:center;padding:0 22px} }
+  #synthList{display:flex;flex-direction:column;gap:12px;align-items:center;margin-top:6px}
+  .syn{display:grid;grid-template-columns:1fr 26px 1fr 26px 1fr 30px 1fr;align-items:center;
+    width:min(760px,96%);padding:12px;border-radius:16px;background:var(--panel);cursor:pointer;
+    border:1.5px solid rgba(221,226,234,.10);transition:transform .12s,border-color .12s,background .12s}
+  .syn:hover{transform:translateY(-3px);border-color:rgba(124,196,255,.55);background:var(--panel2)}
+  .syn .box{min-width:0;padding:9px 8px;border-radius:12px;background:rgba(0,0,0,.24);text-align:center}
+  .syn .box .g{font-size:20px;line-height:1.1}
+  .syn .box .n{font-size:10.5px;color:#fff;margin-top:4px;line-height:1.25}
+  .syn .box .k{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:2px}
+  .syn .box .dots{display:flex;gap:3px;justify-content:center;margin-top:5px}
+  .syn .box .dots i{width:6px;height:6px;border-radius:50%;background:rgba(221,226,234,.18)}
+  .syn .box .dots i.f{background:currentColor}
+  .syn .box.res{border:1.5px solid currentColor;background:rgba(124,196,255,.08)}
+  .syn .lk{height:2px;background:linear-gradient(90deg,rgba(221,226,234,.12),rgba(221,226,234,.45),rgba(221,226,234,.12));position:relative}
+  .syn .lk.to::after{content:'';position:absolute;right:-1px;top:-4px;border:5px solid transparent;border-left-color:rgba(221,226,234,.6)}
+  @media (max-width:620px){ .syn{grid-template-columns:1fr 12px 1fr 12px 1fr 16px 1fr;padding:9px} .syn .box .n{font-size:9.5px} }
   .go{position:sticky;bottom:12px;z-index:3;margin:22px auto 0;width:fit-content;max-width:96%;
     display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;
     padding:9px 13px;border-radius:17px;background:rgba(13,16,20,.92);
@@ -387,6 +405,12 @@
   <div class="go"><button id="tutGo">Понятно</button></div>
 </div></div>
 
+<div class="screen" id="synthScreen"><div class="wrap">
+  <h1 id="synthTitle">Синтез</h1>
+  <div class="sub" id="synthSub"></div>
+  <div id="synthList"></div>
+</div></div>
+
 <div class="screen" id="lvlScreen"><div class="wrap">
   <div id="lvlHead">
     <div class="step" id="lvlStep"><span data-i18n="level">Уровень</span> <span id="lvlNum">2</span></div>
@@ -505,7 +529,8 @@ body.touch #bl{display:none}
   #objBox .obj{pointer-events:none}
   #objBox.min .obj{display:none}
   #objBox.min .obj.first{display:flex}
-  #objBox.min h4::after{content:' ▾';opacity:.6}
+  #objBox.min::after{content:'▾';display:block;text-align:center;margin:3px 0 -4px;
+    font-size:15px;line-height:1;color:#e6bd5c;opacity:.9}
   .obj{font-size:10.5px;line-height:1.32;margin-bottom:5px;gap:6px}
   .obj .tick{width:12px;height:12px;font-size:8px}
   .obj .op{font-size:9px}
@@ -587,14 +612,29 @@ function el(id){ const n=document.getElementById(id);
 let VW=0,VH=0,DPR=1,ZOOM=1;
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TAU=Math.PI*2, STEP=1/60;
+/* Размер берём у самого холста, а не у окна: в Safari на айфоне innerHeight
+   расходится с видимой высотой, пока адресная строка появляется или прячется,
+   и картинку сплющивало. Буфер переназначаем только при реальном изменении —
+   само переназначение стирает холст, отсюда было мерцание под меню. */
+let CW0=0, CH0=0;
 function resize(){
   DPR=Math.min(devicePixelRatio||1,2);
+  const cw=Math.max(1,cv.clientWidth||innerWidth), ch=Math.max(1,cv.clientHeight||innerHeight);
   /* чем ниже экран, тем дальше камера: иначе враг сверху и снизу появляется
      уже вплотную и среагировать нельзя */
-  ZOOM=Math.max(.70,Math.min(1,innerHeight/640));
-  VW=innerWidth/ZOOM; VH=innerHeight/ZOOM;          /* размеры сцены в единицах мира */
-  cv.width=Math.floor(innerWidth*DPR); cv.height=Math.floor(innerHeight*DPR); }
+  ZOOM=Math.max(.70,Math.min(1,ch/640));
+  VW=cw/ZOOM; VH=ch/ZOOM;                              /* размеры сцены в единицах мира */
+  const bw=Math.floor(cw*DPR), bh=Math.floor(ch*DPR);
+  if(cv.width!==bw) cv.width=bw;
+  if(cv.height!==bh) cv.height=bh;
+  CW0=cw; CH0=ch; }
+/* проверяем раз в кадр: сработает и без события resize, которое Safari присылает не всегда */
+function resizeCheck(){
+  const cw=cv.clientWidth, ch=cv.clientHeight;
+  if(cw&&ch&&(Math.abs(cw-CW0)>.5||Math.abs(ch-CH0)>.5)) resize(); }
 addEventListener('resize',resize); resize();
+if(window.visualViewport) visualViewport.addEventListener('resize',()=>{ resize(); setTimeout(resize,160); });
+addEventListener('orientationchange',()=>{ setTimeout(resize,120); setTimeout(resize,450); });
 /* вертикальная раскладка не поддерживается: просим повернуть и ставим бой на паузу */
 function rotSync(){
   const n=el('rot'); if(!n||n===NULLEL) return;
@@ -647,7 +687,7 @@ const UI={
  unlockedM:['Открыто задание: ','Unlocked: '],
  relicTitle:['Трофейный модуль','Salvaged Relic'],
  relicSub:['Уникальная модернизация. Сохраняется во всех следующих заданиях (для текущего корпуса).','A unique upgrade. It carries over into every following mission (for this hull).'],
- relicHave:['Трофеи','Relics'], relicShort:['Трофей','Relic'], pts:['Очки','Points'], ptsGain:['Очки за задание','Mission points'],
+ relicHave:['Трофеи','Relics'], synthTitle:['Синтез','Synthesis'], synthSub:['Выберите рецепт. Когда способность и модернизация из него дойдут до предела, в этом бою появится новая способность.','Pick a recipe. Once its ability and upgrade are maxed, a new ability unlocks for this run.'], synthGot:['СИНТЕЗ','SYNTHESIS'], synthKRel:['трофей','relic'], synthKAb:['способность','ability'], synthKWp:['модернизация','upgrade'], synthKRes:['результат','result'], relicShort:['Трофей','Relic'], pts:['Очки','Points'], ptsGain:['Очки за задание','Mission points'],
  xpN:['опыт','xp'], densN:['плотность','density'],
  autoOn:['АВТООГОНЬ ВКЛЮЧЁН','AUTOFIRE ON'], autoOff:['АВТООГОНЬ ВЫКЛЮЧЕН','AUTOFIRE OFF'],
  sndOn:['ЗВУК ВКЛЮЧЁН','SOUND ON'], sndOff:['ЗВУК ВЫКЛЮЧЕН','SOUND OFF'],
@@ -916,7 +956,7 @@ function newWorld(cls,mid,seed){
   const size=5200,c=size/2;
   const w={seed,cls,mid,biome:M.biome,size,t:0,kills:0,over:false,won:false,spawnAcc:0,bossT:M.endless?95:70,bossN:0,
     p:{x:c,y:c,r:16,ang:0,hp:C.hp,hpMax:C.hp,sh:C.shield||0,shMax:C.shield||0,shT:99,speed:C.speed,dashCd:0,dashT:0,ifr:0,
-       xp:0,level:1,xpNext:6,rerolls:1,ab1Cd:0,ab2Cd:0,ab1Max:1,ab2Max:1,energy:100,energyMax:100,
+       xp:0,level:1,xpNext:6,rerolls:2,ab1Cd:0,ab2Cd:0,ab1Max:1,ab2Max:1,energy:100,energyMax:100,
        vx:0,vy:0,lean:0,walk:0},
     weapons:{},pas:{power:0,rate:0,speed:0,hull:0,magnet:0,regen:0,armor:0,area:0,cool:0},
     enemies:[],allies:[],bullets:[],ebullets:[],shards:[],pools:[],builds:[],orbs:[],zones:[],helpers:[],
@@ -1527,14 +1567,14 @@ const ABILITIES={
 
  focus:{name:['Фокусировка','Focusing'],glyph:'≫',passive:1,max:5,col:'#5cc8ff',
   info:['Стоя на месте, луч копит мощь и толщину.','Standing still charges the beam wider and hotter.'],
-  desc:l=>tt(`+${((10+2.5*(l-1))*1.35).toFixed(0)}% урона за полсекунды, потолок +${Math.round((50+12.5*(l-1))*1.35)}%, дальность луча +${l*3}%.`,
+  desc:l=>tt(`+${((10+2.5*(l-1))*(l>=5?2.3:2)).toFixed(0)}% урона за полсекунды, потолок +${Math.round((50+12.5*(l-1))*(l>=5?2.3:2))}%, дальность луча +${l*3}%.`,
              `+${(10+2.5*(l-1)).toFixed(0)}% damage per half second, cap +${50+12.5*(l-1)}%, width to ${Math.round((1+2.5*l/5)*100)}%.`),
   tick(st,dt,l){
     const moving=(INPUT.mx||INPUT.my)||Math.hypot(W.p.vx,W.p.vy)>34;
     const rate=(.10+.025*(l-1))/.5, cap=.5+.125*(l-1);
     if(moving){ if(st.c>0){ st.c=0; fx.ring(W.p.x,W.p.y,42,'#5cc8ff'); } }
     else st.c=Math.min(cap,(st.c||0)+rate*dt);
-    W.focus={c:st.c||0,cap,lv:l,dmg:1+(st.c||0)*1.35,w:1+((st.c||0)/cap)*(1.1+.5*l)};
+    W.focus={c:st.c||0,cap,lv:l,dmg:1+(st.c||0)*(l>=5?2.3:2.0),w:1+((st.c||0)/cap)*(1.1+.5*l)};
     /* кольцо набора показываем изредка: каждый кадр — это 60 эффектов в секунду */
     if((st.c||0)>.02 && gate('focusring',260))
       fx.ring(W.p.x,W.p.y,W.p.r*1.5+((st.c||0)/cap)*18,'#5cc8ff'); }},
@@ -1828,19 +1868,20 @@ function spawnE(type,x,y,mul){
 /* ступень позднего боя: 0 до десятой минуты, дальше +1 каждые 90 секунд */
 function lateTier(){ return W.t<600 ? 0 : Math.min(8, 1+Math.floor((W.t-600)/90)); }
 
-function spawnElite(){
+function spawnElite(trophy){
   const M=MISSIONS.find(m=>m.id===W.mid);
   const idx=Math.min(ELITE_ORDER.length-1, W.eliteN + (M.endless?ri(0,1):0));
   const key=ELITE_ORDER[Math.min(ELITE_ORDER.length-1,idx)];
   const t=ELITES[key], B=BIOMES[W.biome];
-  const s=(1+W.t/70)*B.hp*(1+W.eliteN*.22);
+  const s=(1+W.t/70)*B.hp*(1+W.eliteN*.22)*(trophy?1.8:1);   /* носитель трофея крепче остальных */
   const a=rr(0,TAU), d=Math.max(VW,VH)*.6+150;
   W.eliteN++;
   W.enemies.push({type:key,x:clamp(W.p.x+Math.cos(a)*d,60,W.size-60),y:clamp(W.p.y+Math.sin(a)*d,60,W.size-60),
     r:t.r,hp:t.hp*s,hpMax:t.hp*s,sp:t.sp,dmg:t.dmg*(1+W.t/420),xp:t.xp,form:t.form,
     col:t.col,dark:t.dark,eye:t.eye,blood:t.blood,armor:t.armor*(1+W.t/500),ename:t.name,
-    cd:2.4,flash:0,hitCd:0,ph:rr(0,TAU),walk:0,dir:0,dead:false,boss:false,elite:true,charge:0});
-  S.boom(); shake(13); toast(U('eliteIn')+' — '+L(t.name)); }
+    cd:2.4,flash:0,hitCd:0,ph:rr(0,TAU),walk:0,dir:0,dead:false,boss:false,elite:true,charge:0,trophy:!!trophy});
+  S.boom(); shake(13);
+  toast(trophy ? tt('НОСИТЕЛЬ ТРОФЕЯ','RELIC BEARER')+' — '+L(t.name) : U('eliteIn')+' — '+L(t.name)); }
 function spawnBoss(){ const a=rr(0,TAU),d=Math.max(VW,VH)*.62+150;
   const s=(1+W.t/54)*BIOMES[W.biome].hp*(1+W.bossN*.5); W.bossN++;
   W.enemies.push({type:'colossus',x:W.p.x+Math.cos(a)*d,y:W.p.y+Math.sin(a)*d,r:50,hp:900*s,hpMax:900*s,
@@ -1861,6 +1902,27 @@ function bossHome(){
 }
 function spawnRing(type,x,y,mul){ spawnE(type,clamp(x,40,W.size-40),clamp(y,40,W.size-40),mul); }
 const BARRIERS=[];
+/* Синтез: взял на 20-м уровне рецепт — и когда способность и модернизация
+   из него доходят до предела, в этом бою появляется новая способность.
+   Список будет расти; пока начинаем с Вектора. */
+const SYNTH=[
+ {id:'repulse',cls:'vector',relic:'adaptive',ab:'focus',wp:'shock',glyph:'⟐',col:'#7cc4ff',
+  name:['Отражающий импульс','Repulse Pulse'],
+  info:['Отталкивает врагов вдвое сильнее ударной волны (боссов слабее) и отражает вражеские снаряды обратно.',
+        'Pushes enemies twice as hard as the shockwave (bosses less) and reflects enemy shots back.']},
+];
+function abLevel(id){ if(!W)return 0;
+  for(const k of ['ab1','ab2']) if(W[k]&&W[k].id===id) return W[k].lv||0;
+  return 0; }
+function abMax(id){ const d=ABILITIES[id]; return (d&&d.max)||5; }
+function wpLevel(id){ return (W&&W.weapons[id]&&W.weapons[id].lv)||0; }
+function wpMax(id){ const d=WEAPONS[id]; return (d&&d.max)||5; }
+/* рецепты, доступные этому корпусу: нужный трофей уже есть, способность выбрана */
+function synthFor(){
+  if(!W) return [];
+  return SYNTH.filter(r=>r.cls===W.cls && W.relics.indexOf(r.relic)>=0
+    && (W.ab1.id===r.ab||W.ab2.id===r.ab));
+}
 /* потомство тоже подчиняется составу миссии: если бегунов в ней нет, их не будет */
 function childPool(want){
   const M=MISSIONS.find(m=>m.id===W.mid), allow=M&&(M.mix||M.pool);
@@ -1972,6 +2034,24 @@ function waves(dt){
     if(tr>(W.lastTier||0)){ W.lastTier=tr;
       toast(tt('ПРОТИВНИК УСИЛЕН · СТУПЕНЬ '+tr,'ENEMY REINFORCED · TIER '+tr));
       S.thud(); shake(4); } }
+  if(!W.rerollBonus&&W.t>=240){ W.rerollBonus=true; W.p.rerolls++; }   /* +1 «Другие» после 4-й минуты */
+  /* «Отражающий импульс»: толчок вдвое сильнее ударной волны, снаряды летят обратно */
+  if(W.repulse){ W.repulse.cd-=dt;
+    if(W.repulse.cd<=0){ W.repulse.cd=2.4;
+      const R=(150+wpLevel('shock')*28)*mArea(), p0=W.p;
+      const lr=gridNear(p0.x,p0.y,R+40,BUFZ);
+      for(let q=0;q<lr.length;q++){ const e=lr[q]; if(e.dead)continue;
+        const dx=e.x-p0.x, dy=e.y-p0.y, dd=Math.hypot(dx,dy)||1; if(dd>R+e.r)continue;
+        const push=(e.boss?12:34)*(1-dd/(R+e.r)*.4);
+        e.x=clamp(e.x+dx/dd*push,e.r,W.size-e.r); e.y=clamp(e.y+dy/dd*push,e.r,W.size-e.r);
+        e.slow=Math.max(e.slow||0,.3); hurt(e,(10+wpLevel('shock')*6)*mDmg(),'repulse'); }
+      /* снаряды разворачиваются и бьют по тем, кто их выпустил */
+      for(let q=W.ebullets.length-1;q>=0;q--){ const b=W.ebullets[q]; if(b.web)continue;
+        if(Math.hypot(b.x-p0.x,b.y-p0.y)>R)continue;
+        W.ebullets.splice(q,1);
+        proj({x:b.x,y:b.y,vx:-b.vx*1.4,vy:-b.vy*1.4,dmg:(b.dmg||8)*1.6*mDmg(),r:4,life:1.4,
+          range:600,col:'#ffffff',edge:'#7cc4ff',tracer:1}); }
+      fx.shock(p0.x,p0.y,R,'#7cc4ff'); S.thud(); } }
   W.safeAng=(W.safeAng||0)+dt*.22;                  /* медленно уходит по кругу */
   W.safeShift=(W.safeShift||rr(9,16))-dt;
   if(W.safeShift<=0){ W.safeAng+=rr(1.2,2.6); W.safeShift=rr(9,16); }
@@ -2264,7 +2344,15 @@ function update(dt){
     wd.tick(W.weapons[id],dt,W.weapons[id].lv); }
 
   /* элиты по расписанию задания */
-  if(W.eliteLeft>0){ W.eliteT-=dt; if(W.eliteT<=0){ spawnElite(); W.eliteLeft--; W.eliteT=(MISSIONS.find(m=>m.id===W.mid).endless?85:62); } }
+  if(W.eliteLeft>0){ W.eliteT-=dt; if(W.eliteT<=0){
+    const M0=MISSIONS.find(m=>m.id===W.mid);
+    /* трофей несёт последняя элита задания, а не первая */
+    spawnElite(!M0.endless && W.eliteLeft===1 && !W.trophySpawned);
+    if(!M0.endless && W.eliteLeft===1) W.trophySpawned=true;
+    W.eliteLeft--; W.eliteT=(M0.endless?85:62); } }
+  /* в бесконечном режиме носитель трофея приходит на девятой минуте */
+  { const M1=MISSIONS.find(m=>m.id===W.mid);
+    if(M1&&M1.endless&&!W.trophySpawned&&W.t>=540){ W.trophySpawned=true; spawnElite(true); } }
 
   waves(dt);
   W.bossT-=dt;
@@ -3123,7 +3211,7 @@ function update(dt){
       for(let k=0;k<Math.min(3,e.infected);k++) spawnSpider(e.x+rr(-12,12),e.y+rr(-12,12)); }
     if(e.elite){ ACHST.elites++; S.boom(); shake(15); hitstop(.09); toast(U('eliteDown')+' — '+L(e.ename||['',''])); 
       p.hp=Math.min(p.hpMax,p.hp+22);
-      if(!W.relicDropped){ W.relicDropped=true;
+      if(e.trophy&&!W.relicDropped){ W.relicDropped=true;
         W.relicDrops.push({x:e.x,y:e.y,r:20,ph:0}); toast(U('relicDrop')); } }
     if(e.boss){ ACHST.bosses++; S.boom(); shake(18); hitstop(.12); toast(U('bossDown')); addGoal('boss',1);
       p.hp=Math.min(p.hpMax,p.hp+34); }
@@ -3192,9 +3280,11 @@ function hurtPlayer(d){ const p=W.p; if(p.ifr>0)return;
   popup(p.x,p.y-28,'-'+Math.round(d),'#e0605e'); if(p.hp<=0)gameOver(U('failed')); }
 function gainXp(n,silent){ const p=W.p; p.xp+=n; if(!silent)S.pick();
   while(p.xp>=p.xpNext){ p.xp-=p.xpNext; p.level++;
-    p.xpNext=Math.round(6+p.level*3.4+Math.pow(p.level,1.44));
-    if(p.level%5===0)p.rerolls++;
+    /* после пятой минуты порог растёт вместе со временем: поздние уровни дороже */
+    const late=W.t>300?1+Math.min(1.5,(W.t-300)/360):1;
+    p.xpNext=Math.round((6+p.level*3.4+Math.pow(p.level,1.44))*late);
       if(anyUpgradeLeft()) pendingLevels++;   /* всё прокачано — уровень не копится */
+      if(p.level===20&&!W.synthOffered&&synthFor().length){ W.synthOffered=true; W.synthPending=true; }
       S.lvlUp();
       fx.note(p.x,p.y-p.r-16,U('newLvl'),'#ffd94a'); } }
 
@@ -3409,6 +3499,7 @@ function drawCards(){ const pool=buildPool(),out=[];
 function openLevelUp(){ S.lvl(); el('lvlScreen').classList.add('on'); markScroll();
   if(!drawCards()){ el('lvlScreen').classList.remove('on'); paused=false; } }
 function applyChoice(c){
+  setTimeout(()=>{ try{ checkSynth(); }catch(e){} },0);
   if(c.ab){ W[c.id].lv++; }
   else if(c.w){ if(!W.weapons[c.id]){ const w={lv:1}; WEAPONS[c.id].init(w); W.weapons[c.id]=w; } else W.weapons[c.id].lv++; }
   else { W.pas[c.id]++; if(c.id==='hull'){ W.p.hpMax+=24; W.p.hp+=24; } }
@@ -4868,6 +4959,10 @@ function drawEnemy(e,T,LOD,ally){
     circle(x,y,r*1.5); ctx.stroke();
     ctx.restore();
   }
+  if(e.trophy&&!ally){
+    const pt=.6+.4*Math.sin(T*4.2);
+    softGlow(x,y,r*2.6,'rgba(240,193,75,.55)',.45*pt);
+  }
   if(e.elite&&!ally){
     /* тёплый контур и шеврон: тяжёлого противника должно быть видно сразу */
     const pl=.6+.4*Math.sin(T*3.4+(e.ph||0));
@@ -5261,11 +5356,12 @@ function syncHud(){ if(!W)return; const p=W.p;
   if(lb&&lb!==NULLEL){
     /* если всё уже на максимуме, кнопка не нужна: иначе она превращалась
        в бесплатное лечение */
-    const want = pendingLevels>0 && running && !paused && anyUpgradeLeft()
+    const want = running && !paused && ((pendingLevels>0 && anyUpgradeLeft()) || W.synthPending)
       && !el('lvlScreen').classList.contains('on') && !el('relicScreen').classList.contains('on');
     if(lb.hidden===want) lb.hidden=!want;
-    if(want){ el('lvlBtnT').textContent=U('lvlReady');
-      lb.querySelector('b').textContent='+'+pendingLevels; }
+    if(want){ const syn=W.synthPending;
+      el('lvlBtnT').textContent=syn?U('synthGot'):U('lvlReady');
+      lb.querySelector('b').textContent=syn?'':'+'+pendingLevels; }
   }
   const C=CLASSES[W.cls];
   const k1=clamp(1-p.ab1Cd/(p.ab1Max*mCool()),0,1), k2=clamp(1-p.ab2Cd/(p.ab2Max*mCool()),0,1);
@@ -5380,7 +5476,7 @@ function frame(ts){ requestAnimationFrame(frame);
   }
   quality(raw||.016);
   humIdle();
-  try{ tcSync(); rotSync(); }catch(e){}
+  try{ resizeCheck(); tcSync(); rotSync(); }catch(e){}
   if(planetActive){ try{ drawPlanetFrame(Math.min(raw||0,.05)); }catch(e){ logErr('planet',e); } }
   try{ render(); }catch(e){ logErr('render',e); } }
 requestAnimationFrame(frame);
@@ -5729,6 +5825,8 @@ function renderPause(){
   if(!W)return;
   let h=`<div class="rlabel">${U('killsP')}: <b style="color:#fff">${W.kills}</b> · ${U('scoreShort')}: <b style="color:var(--gold)">${W.score||0}</b></div>`;
   h+=`<div class="rlabel">${U('curBuild')}</div>`;
+  if(W.synth){ const r=SYNTH.find(x=>x.id===W.synth.id);
+    if(r) h+=`<div class="chip"><span class="g" style="color:${r.col}">${r.glyph}</span>${L(r.name)}<b>${W.synth.done?'✓':'…'}</b></div>`; }
   for(const k of ['ab1','ab2']){ const A=W[k], d=ABILITIES[A.id];
     h+=`<div class="chip" title="${esc(d.desc?L(d.desc(A.lv)):'')}"><span class="g" style="color:${d.col||CLASSES[W.cls].color}">${d.glyph}</span>${L(d.name)}<b>${A.lv}</b></div>`; }
   for(const pk of (W.picks||[])){ const d=ABILITIES[pk]; if(!d)continue;
@@ -5771,6 +5869,39 @@ function maybeTutorial(){
   return true;
 }
 
+/* экран синтеза: панели из трёх связанных окошек и результата */
+function openSynth(){
+  const list=synthFor(); if(!list.length){ W.synthPending=false; return false; }
+  paused=true;
+  const dots=(lv,mx,col)=>{ let s=''; for(let k=1;k<=mx;k++) s+='<i class="'+(k<=lv?'f':'')+'"></i>'; return '<div class="dots" style="color:'+col+'">'+s+'</div>'; };
+  const box=(g,n,k,dt,col,cls)=>'<div class="box'+(cls?' '+cls:'')+'" style="color:'+col+'"><div class="g">'+g+'</div><div class="n">'+n+'</div><div class="k">'+k+'</div>'+dt+'</div>';
+  el('synthTitle').textContent=U('synthTitle'); el('synthSub').textContent=U('synthSub');
+  el('synthList').innerHTML=list.map((r,i)=>{
+    const R=RELICS.find(x=>x.id===r.relic), A=ABILITIES[r.ab], P=WEAPONS[r.wp];
+    return '<div class="syn" data-i="'+i+'">'
+      +box(R?R.glyph:'?',L(R?R.name:['','']),U('synthKRel'),dots(1,1,R?R.col:'#f0c14b'),R?R.col:'#f0c14b')
+      +'<div class="lk"></div>'
+      +box(abIcon(A),L(A.name),U('synthKAb'),dots(abLevel(r.ab),abMax(r.ab),A.col||'#5cc8ff'),A.col||'#5cc8ff')
+      +'<div class="lk"></div>'
+      +box(P?P.glyph:'?',L(P?P.name:['','']),U('synthKWp'),dots(wpLevel(r.wp),wpMax(r.wp),P?P.col:'#a9b8ff'),P?P.col:'#a9b8ff')
+      +'<div class="lk to"></div>'
+      +box(r.glyph,L(r.name),U('synthKRes'),'',r.col,'res')
+      +'</div>'; }).join('');
+  el('synthList').querySelectorAll('.syn').forEach(n=>n.addEventListener('click',()=>{
+    const r=list[+n.dataset.i]; W.synth={id:r.id,done:false};
+    W.synthPending=false; show(null); paused=false; clearMouse(); S.ready();
+    toast(U('synthGot')+' — '+L(r.name)); checkSynth(); }));
+  show('synthScreen'); return true;
+}
+/* рецепт исполнен, когда способность и модернизация на пределе */
+function checkSynth(){
+  if(!W||!W.synth||W.synth.done) return;
+  const r=SYNTH.find(x=>x.id===W.synth.id); if(!r) return;
+  if(abLevel(r.ab)>=abMax(r.ab) && wpLevel(r.wp)>=wpMax(r.wp)){
+    W.synth.done=true; W.repulse={cd:1};
+    toast(U('synthGot')+': '+L(r.name)+'!'); S.win(); fx.ring(W.p.x,W.p.y,160,r.col); shake(6); }
+}
+
 function togglePause(){
   if(!running||!W||W.over||W.won)return;
   if(el('lvlScreen').classList.contains('on')||el('relicScreen').classList.contains('on')
@@ -5790,9 +5921,9 @@ el('pauseBtn').addEventListener('click',togglePause);
     ob.addEventListener('pointerdown',e=>e.stopPropagation());
   } }
 el('lvlBtn').addEventListener('click',()=>{
-  if(pendingLevels>0 && running && !paused
-     && !el('lvlScreen').classList.contains('on')
-     && !el('relicScreen').classList.contains('on')){ paused=true; openLevelUp(); } });
+  if(!running||paused||el('lvlScreen').classList.contains('on')||el('relicScreen').classList.contains('on')) return;
+  if(W.synthPending){ openSynth(); return; }          /* синтез в приоритете: он разовый */
+  if(pendingLevels>0){ paused=true; openLevelUp(); } });
 el('tutGo').addEventListener('click',()=>{
   try{ localStorage.setItem('dustlineTut','1'); }catch(e){}
   paused=false; show(null); clearMouse(); });
@@ -6128,7 +6259,8 @@ function tcSync(){
   const lb=el('lvlBtn');
   if(lb && lb!==NULLEL){
     const menu0 = !!document.querySelector('.screen.on');
-    const want0 = !!(pendingLevels>0 && running && !paused && !menu0 && W && !W.over && !W.won && anyUpgradeLeft());
+    const want0 = !!(running && !paused && !menu0 && W && !W.over && !W.won
+      && ((pendingLevels>0 && anyUpgradeLeft()) || W.synthPending));
     if(lb.hidden !== !want0) lb.hidden = !want0;
   }
   if(!tcReady) return;
