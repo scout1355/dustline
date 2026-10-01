@@ -36,6 +36,15 @@
   .pill{background:rgba(27,30,36,.66);backdrop-filter:blur(5px);border-radius:999px;padding:5px 12px;
     font-size:12px;color:var(--dim);display:flex;gap:6px;align-items:center}
   .pill b{color:#fff;font-weight:650}
+  .hprow{display:flex;align-items:center;gap:14px}
+  /* полосы добычи: появляются при добыче, гаснут за 5 с после */
+  #oreBars{display:flex;gap:10px;opacity:0;transition:opacity 5s ease;pointer-events:none}
+  #oreBars.on{opacity:1;transition:opacity .3s ease}
+  .orebar{display:flex;align-items:center;gap:6px}
+  .orebar .ob{position:relative;height:8px;width:calc(min(340px,44vw)/3);border-radius:999px;
+    background:rgba(0,0,0,.5);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+  .orebar .ob i{position:absolute;inset:0;border-radius:999px;transform-origin:left;transform:scaleX(0);transition:transform .25s}
+  .orebar b{font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.02em}
   .bar{position:relative;height:10px;border-radius:999px;background:rgba(0,0,0,.5);overflow:hidden;
     width:min(340px,44vw);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
   .bar>i{position:absolute;inset:0;border-radius:999px;transform-origin:left;transform:scaleX(0);transition:transform .1s linear}
@@ -137,6 +146,8 @@
   .opt h3{margin:0 0 2px;font-size:16px;color:#fff;font-weight:650}
   .opt .role{font-size:11px;color:currentColor;margin-bottom:9px;opacity:.92}
   .opt .pts{font-size:10.5px;color:var(--gold);margin:-5px 0 8px;letter-spacing:.04em}
+  .opt .pts.ore{margin-top:-4px;font-weight:600}
+  .rchip{cursor:pointer}
   .rbadge{position:absolute;top:8px;left:8px;z-index:5;display:flex;align-items:center;gap:4px;
     padding:3px 8px 3px 6px;border-radius:9px;font-size:10px;letter-spacing:.06em;
     color:#ffd76a;background:rgba(20,16,8,.78);border:1px solid rgba(240,193,75,.45)}
@@ -340,7 +351,7 @@
       <div class="pill" id="relicPill" hidden></div>
       <div class="pill" id="carryPill" hidden style="color:#7fd98a"></div>
     </div>
-    <div class="bar"><i id="hpFill"></i><i id="shFill" hidden></i></div>
+    <div class="hprow"><div class="bar"><i id="hpFill"></i><i id="shFill" hidden></i></div><div id="oreBars"></div></div>
     <div id="hpTxt"></div>
     <div class="bar" style="height:6px"><i id="xpFill"></i></div>
     <div class="bar" id="enBar" hidden style="height:6px;max-width:220px"><i id="enFill" style="background:linear-gradient(90deg,#5cc8ff,#bfe9ff)"></i></div>
@@ -522,6 +533,7 @@
 
 /* ---- компактная раскладка для телефона в горизонтали ---- */
 body.touch #br{display:none}
+body.touch .ab .k, body.touch #hint{display:none}   /* подсказки клавиш — только для компьютера */
 body.touch #bl{display:none}
 @media (max-height:560px){
   #hud{padding:10px}
@@ -530,6 +542,7 @@ body.touch #bl{display:none}
   #clock{font-size:18px}
   .pill{padding:3px 9px;font-size:10.5px}
   .bar{height:8px;width:min(230px,33vw)}
+  .orebar .ob{width:calc(min(230px,33vw)/3)}
   #hudBtns{top:12px;right:26px;gap:8px}
   .hudbtn{width:32px;height:32px;border-radius:10px;font-size:12px}
   #objBox{top:58px;right:26px;width:172px;padding:7px 10px;border-radius:13px}
@@ -610,7 +623,7 @@ body.touch #bl{display:none}
    · всё состояние забега лежит в W и сериализуется в JSON целиком
    ========================================================================== */
 (function(){
-const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const cv=document.getElementById('cv'); let ctx=cv.getContext('2d');   /* let: на время подменяется холстом кэша */
 const NULLEL={style:{setProperty(){}},classList:{add(){},remove(){},toggle(){},contains(){return false;}},
   addEventListener(){},querySelectorAll(){return [];},querySelector(){return null;},focus(){},click(){},
   textContent:'',innerHTML:'',hidden:true,disabled:false,dataset:{}};
@@ -698,7 +711,7 @@ const UI={
  unlockedM:['Открыто задание: ','Unlocked: '],
  relicTitle:['Трофейный модуль','Salvaged Relic'],
  relicSub:['Уникальная модернизация. Сохраняется во всех следующих заданиях (для текущего корпуса).','A unique upgrade. It carries over into every following mission (for this hull).'],
- relicHave:['Трофеи','Relics'], volMaster:['Общая','Master'], volMusic:['Музыка','Music'], volSfx:['Звуки','Sounds'], synthTitle:['Синтез','Synthesis'], synthSub:['Выберите рецепт. Когда способность и модернизация из него дойдут до предела, в этом бою появится новая способность.','Pick a recipe. Once its ability and upgrade are maxed, a new ability unlocks for this run.'], synthGot:['СИНТЕЗ','SYNTHESIS'], synthKRel:['трофей','relic'], synthKAb:['способность','ability'], synthKWp:['модернизация','upgrade'], synthKRes:['результат','result'], relicShort:['Трофей','Relic'], pts:['Очки','Points'], ptsGain:['Очки за задание','Mission points'],
+ relicHave:['Трофеи','Relics'], optFps:['Кадров','FPS'], volMaster:['Общая','Master'], volMusic:['Музыка','Music'], volSfx:['Звуки','Sounds'], synthTitle:['Синтез','Synthesis'], synthSub:['Выберите рецепт. Когда способность и модернизация из него дойдут до предела, в этом бою появится новая способность.','Pick a recipe. Once its ability and upgrade are maxed, a new ability unlocks for this run.'], synthGot:['СИНТЕЗ','SYNTHESIS'], synthKRel:['трофей','relic'], synthKAb:['способность','ability'], synthKWp:['модернизация','upgrade'], synthKRes:['результат','result'], relicShort:['Трофей','Relic'], pts:['Очки','Points'], ptsGain:['Очки за задание','Mission points'],
  xpN:['опыт','xp'], densN:['плотность','density'],
  autoOn:['АВТООГОНЬ ВКЛЮЧЁН','AUTOFIRE ON'], autoOff:['АВТООГОНЬ ВЫКЛЮЧЕН','AUTOFIRE OFF'],
  sndOn:['ЗВУК ВКЛЮЧЁН','SOUND ON'], sndOff:['ЗВУК ВЫКЛЮЧЕН','SOUND OFF'],
@@ -756,7 +769,7 @@ const SMP={};
 /* выравнивание записей: при громкости 1 каждая звучит одинаково — около 1.8 от типичного звука игры */
 const SMP_GAIN={goop:.26*.7,splat:.223*.7,hive:.257,   /* смерти тише на 30% по просьбе */
   /* прыжок ×1.3 от типичного; добыча ×0.8; луч по врагу ×0.6 (убавлен по просьбе); молния ×0.8 (убавлена) */
-  whoosh:0.17,weld1:0.28,weld2:0.165,zap:0.106};   /* прыжок +30%; сварки и молния −40% */
+  whoosh:0.17,weld1:0.224,weld2:0.132,zap:0.106};   /* прыжок +30%; сварки и молния −40% */
 function smpLoad(){
   for(const k in SMP_SRC){
     try{ const bin=atob(SMP_SRC[k]), u=new Uint8Array(bin.length);
@@ -995,6 +1008,8 @@ const S={ shot:()=>tone(430,.05,'triangle',.05,250), mg:()=>{nz(.05,.038,2600);t
   burst:()=>{ if(!smp('goop',1.15,.8)) squishSnd(.34,.28,260,880,200,4,4,.5); },
   crunch:()=>{ nz(.06,.12,2200); setTimeout(()=>{ if(!smp('splat',.85,.9)) squishSnd(.22,.196,300,900,240,4.5,2,.6); },30); },
   /* дробовик: глухой удар и приглушённый шорох картечи, без звонкой верхушки */
+  /* часы: короткий сухой щелчок с призвуком; «так» ниже, чем «тик» */
+  tick:(tock)=>{ nz(.012,.05,tock?2600:4200); tone(tock?1350:2100,.02,'square',.022,tock?1250:1950); },
   hive:()=>{ if(!smp('hive',1.1,1)) S.boom(); },
   scatter:()=>{ nz(.13,.085,760); tone(92,.13,'sine',.075,52);
                 setTimeout(()=>nz(.07,.03,480),22); } };
@@ -1007,7 +1022,6 @@ const CLASSES={
   start:'beam',ab1:'blink',ab2:'singularity',hp:72,shield:46,speed:232,
   abils:['blink','singularity','shield','lance','focus','storm','coil'],
   bullets:[['Луч наращивает урон, пока держит цель','The beam ramps up while it holds a target'],
-           ['ЛКМ — <b>фазовый скачок</b>, ПКМ — <b>сингулярность</b>','LMB — <b>phase jump</b>, RMB — <b>singularity</b>'],
            ['Хрупкий, но самый вёрткий','Fragile but the most agile']]},
  thunder:{name:['ГРОМ','THUNDER'],role:['Штурмовой корпус','Assault chassis'],color:'#ff7a45',accent:'#ffc9a3',
   tag:['Тяжёлая бронекапсула на тяге. Плотный кинетический огонь и взрывчатка.',
@@ -1015,15 +1029,14 @@ const CLASSES={
   start:'tmg',ab1:'barrage',ab2:'ram',hp:132,speed:190,
   abils:['barrage','ram','missiles','flamer','blade'],
   bullets:[['Больше всех стволов и сплошного урона','The most barrels and raw sustained damage'],
-           ['ЛКМ — <b>артобстрел</b>, ПКМ — <b>таран</b>','LMB — <b>barrage</b>, RMB — <b>ram</b>'],
            ['Толстая броня, тяжёлый разгон','Thick armour, sluggish acceleration']]},
  builder:{name:['ЗОДЧИЙ','ARCHITECT'],role:['Инженерный корпус','Engineer chassis'],color:'#ffd94a',accent:'#fff0b0',
   tag:['Платформа с парящими модулями. Сама стреляет слабо — поле боя строится руками.',
        'A platform with floating modules. Weak on its own — you build the battlefield by hand.'],
   start:'sidearm',ab1:'place',ab2:'anchor',hp:116,speed:200,fixed:1,
   abils:['unlock_rocket','unlock_laser','unlock_flak','unlock_guard','unlock_repair','unlock_charge','unlock_repel'],
-  bullets:[['Боевой спутник ведёт огонь на ходу, оборону вы строите руками','A combat drone fires while you move; the defence you build by hand'],
-           ['ПКМ ставит <b>опорный модуль</b> с аурой на выбор','RMB places a <b>support anchor</b> with a chosen aura'],
+  bullets:[['Помощники кружат рядом и стреляют сами, оборону вы строите руками','Helpers orbit you and fire on their own; the defence you build by hand'],
+           ['Ставит <b>опорный модуль</b> с аурой на выбор','Places a <b>support anchor</b> with a chosen aura'],
            ['Пять типов турелей и пять аур, всё переключается на лету','Five turret types, five auras, all swappable on the fly']]},
  spore:{name:['СПОРА','SPORE'],role:['Органический корпус','Organic chassis'],color:'#c86bff',accent:'#e8c4ff',
   tag:['Живое ядро со жгутами. Яд, цепное заражение и перехват чужих тел.',
@@ -1031,7 +1044,6 @@ const CLASSES={
   start:'cloud',ab1:'burst',ab2:'swarm',hp:102,speed:210,
   abils:['burst','swarm','slick','incubator','grove'],
   bullets:[['Заражённые лопаются и выпускают <b>паучков</b>, идущих за курсором','Infected hosts burst into <b>spiderlings</b> that follow your cursor'],
-           ['ЛКМ — <b>выброс спор</b>, ПКМ — <b>рой</b>','LMB — <b>spore burst</b>, RMB — <b>swarm</b>'],
            ['Раненые враги переходят к вам','Wounded enemies defect to your side']]}
 };
 
@@ -1154,7 +1166,7 @@ function newWorld(cls,mid,seed){
   // объекты миссии
   for(const g of w.goals){
     if(g.t==='nests') for(let i=0;i<g.n;i++){ const a=rr(0,TAU),d=rr(560,size*.42);
-      w.nests.push({x:c+Math.cos(a)*d,y:c+Math.sin(a)*d,r:34,hp:520+i*160,hpMax:520+i*160,cd:rr(2,5),ph:rr(0,TAU),dead:false}); }
+      w.nests.push({x:c+Math.cos(a)*d,y:c+Math.sin(a)*d,r:34,hp:(520+i*160)*3,hpMax:(520+i*160)*3,cd:rr(2,5),ph:rr(0,TAU),dead:false}); }
     if(g.t==='crates') for(let i=0;i<g.n;i++){
       /* ищем место без камней: до двадцати попыток, иначе берём последнее */
       let x0=c,y0=c;
@@ -1462,9 +1474,13 @@ function hurtNest(n,d){ if(n.dead)return; n.hp-=d; n.flash=.12; if(n.hp<=0){ n.d
   fx.burst(n.x,n.y,'#c86bff',40,240); fx.slime(n.x,n.y,'#c86bff',16);
   /* кладка лопается и выпускает выводок */
   const brood=ri(4,7);
-  for(let k=0;k<brood;k++){ const a=rr(0,TAU),dd=rr(30,66);
-    spawnE(rpick(['weblet','weblet','stalker']),n.x+Math.cos(a)*dd,n.y+Math.sin(a)*dd,.75);
-    const nn=W.enemies[W.enemies.length-1]; nn.vx=Math.cos(a)*80; nn.vy=Math.sin(a)*80; }
+  /* Выводок появляется всегда: раньше он шёл через ограничитель появления, и во время
+     передышки до 60% не появлялось, а толчок доставался чужому врагу. Теперь все
+     вылупившиеся несколько секунд в ярости и сразу идут на героя. */
+  for(let k=0;k<brood;k++){ const a=rr(0,TAU),dd=rr(30,66), n0=W.enemies.length;
+    spawnE(rpick(['weblet','weblet','stalker']),n.x+Math.cos(a)*dd,n.y+Math.sin(a)*dd,.75,true);
+    if(W.enemies.length>n0){ const nn=W.enemies[W.enemies.length-1];
+      nn.vx=Math.cos(a)*80; nn.vy=Math.sin(a)*80; nn.rage=4; } }
   ACHST.nests++; S.hive(); shake(14); addGoal('nests',1); toast(U('nestDown')); } }
 
 
@@ -1501,7 +1517,7 @@ beam:{name:['Фазовый луч','Phase Beam'],glyph:'⌁',cls:'vector',max:5
   const col=mix(tierC(lv,5,'#5cc8ff','#ff3c2e'),'#ff2e2e',chg*.55);
   const core=tierC(lv,5,'#eaf9ff','#fff0c0');
   w.hot=Math.min(1.7,w.hot+dt*.5); w.col=col;
-  const a=W.p.ang; const wall=rayHit(W.p.x,W.p.y,a,range);
+  const a=W.p.ang; const wall=rayHit(W.p.x,W.p.y,a,range,0);   /* лазер не проходит ни один камень; барьеры — не камни */
   let end=Math.min(range,wall),hitPt=wall<range?{x:W.p.x+Math.cos(a)*wall,y:W.p.y+Math.sin(a)*wall}:null,n=0;
   for(const e of W.enemies){ if(e.dead)continue;
     const t=((e.x-W.p.x)*Math.cos(a)+(e.y-W.p.y)*Math.sin(a)); if(t<0||t>range)continue;
@@ -1626,7 +1642,7 @@ sidearm:{name:['Боевые помощники','Combat Helpers'],glyph:'⁚',c
     const hp2=W.helpers[i];
     const a=W.t*1.15+i*TAU/Math.max(1,W.helpers.length)+hp2.ph*.001;
     hp2.x=W.p.x+Math.cos(a)*R; hp2.y=W.p.y+Math.sin(a)*R*.9;
-    if(!(W.auto||W.aimHold))continue;
+    if(!(W.auto||W.aimHold)||W.mining)continue;
     hp2.cd-=dt; if(hp2.cd>0)continue;
     const e=nearest(hp2.x,hp2.y,380); if(!e)continue;
     hp2.cd=gap;
@@ -1873,7 +1889,7 @@ const ABILITIES={
     /* первая цель — только впереди: ток идёт туда, куда смотрит корпус */
     let src=p, hit=[];
     for(let h=0;h<l;h++){
-      const e=h?nearest(src.x,src.y,240,hit):nearestCone(src.x,src.y,330,p.ang,.62,hit);
+      const e=h?nearest(src.x,src.y,240,hit):nearestCone(src.x,src.y,330,p.ang,.62,hit,true);   /* молния сквозь преграды */
       if(!e)break;
       hurt(e,(34+l*16)*mDmg()*dt,'storm'); e.slow=Math.max(e.slow||0,.25);
       W.beams.push({kind:'bolt',x1:src.x,y1:src.y,x2:e.x,y2:e.y,
@@ -1913,6 +1929,8 @@ const ABILITIES={
   desc:l=>tt(`${Math.round((26+l*16)*(l>=5?1.35:1))} урона в секунду, дальность ${150+l*42}, поджог.`+(l>=5?' Пятый уровень: +35% урона.':''),
              `${Math.round((26+l*16)*(l>=5?1.35:1))} damage per second, reach ${150+l*42}, sets targets alight.`+(l>=5?' Rank 5: +35% damage.':'')),
   tick(st,dt,l){
+    /* огнемёт подчиняется автоатаке (R) и гаснет на время добычи */
+    if(W.mining||!(W.auto||W.aimHold)) return;
     const range=(150+l*42)*mArea(), half=.44; st.t=(st.t||0)+dt;
     if(st.t>.03){ st.t=0;
       for(let i=0;i<3;i++){ const a=W.p.ang+rr(-half,half), sp=range*rr(1.5,2.1);
@@ -2037,7 +2055,7 @@ const ABILITIES={
  ram:{max:5,col:'#ff7a45',info:['Рывок насквозь с горящим следом; проходит стены.','A charge that burns a trail and passes through walls.'],desc:l=>tt(`Урон ${60+l*24} при таране, след ${12+l*5}/сек. Расшвыривает всех на пути, длина рывка растёт.`,`${60+l*24} impact damage, trail ${12+l*5}/s, longer charge each level.`),name:['Броневой таран','Armoured Ram'],glyph:'➤',cd:12,use(l){
    const k=1+W.pas.power*.22+W.p.level*.035;
    W.p.ram={t:.24+.10*k,a:W.p.ang,hit:[],k,lv:l}; W.p.ifr=Math.max(W.p.ifr,.6); S.ram(); shake(8); return true; }},
- place:{col:'#ffd94a',info:['Ставит турель под курсором. Наведитесь на готовую — сменится её тип.','Deploys a turret at the cursor; hover to switch type.'],desc:l=>tt('ЛКМ ставит турель под курсором; при заполненном лимите снимается самая старая.','Deploys a turret at the cursor.'),name:['Развернуть турель','Deploy Turret'],glyph:'⌦',icon:'turret',cd:3.2,use(){
+ place:{col:'#ffd94a',info:['Ставит турель под курсором. Наведитесь на готовую — сменится её тип.','Deploys a turret at the cursor; hover to switch type.'],desc:l=>tt((TOUCH?'Ставит':'ЛКМ ставит')+' турель под курсором; при заполненном лимите снимается самая старая.','Deploys a turret at the cursor.'),name:['Развернуть турель','Deploy Turret'],glyph:'⌦',icon:'turret',cd:3.2,use(){
    const h=hoveredBuild('turret');
    if(h){ h.ti=nextUnlocked('turret',h.ti); W.lastTi=h.ti; applyTurret(h); h.unfold=.35; S.build();
      toast(U('turretSel')+' — '+L(TURRET_TYPES[h.ti].name)); return 'quick'; }
@@ -2048,7 +2066,7 @@ const ABILITIES={
    W.pods.push({sx:W.p.x,sy:W.p.y,x:W.p.x,y:W.p.y,tx:W.p.x+Math.cos(a)*d,ty:W.p.y+Math.sin(a)*d,
      t:0,dur:Math.max(.22,d/620),kind:'turret',ti:tiNext,life:40});
    S.deploy(); return true; }},
- anchor:{col:'#ffd94a',info:['Ставит опорный модуль. Наведитесь на готовый — сменится его аура.','Deploys a support anchor with an aura.'],desc:l=>tt('ПКМ ставит опорный модуль; при заполненном лимите снимается самый старый.','Deploys a support anchor.'),name:['Опорный модуль','Support Anchor'],glyph:'✥',icon:'anchor',cd:9,use(){
+ anchor:{col:'#ffd94a',info:['Ставит опорный модуль. Наведитесь на готовый — сменится его аура.','Deploys a support anchor with an aura.'],desc:l=>tt((TOUCH?'Ставит':'ПКМ ставит')+' опорный модуль; при заполненном лимите снимается самый старый.','Deploys a support anchor.'),name:['Опорный модуль','Support Anchor'],glyph:'✥',icon:'anchor',cd:9,use(){
    const h=hoveredBuild('anchor');
    if(h){ h.ai=nextUnlocked('anchor',h.ai); h.unfold=.4; W.lastAi=h.ai; S.build();
      toast(U('anchorSel')+' — '+L(ANCHOR_TYPES[h.ai].name)); return 'quick'; }
@@ -2128,10 +2146,10 @@ const ELITES={
    name:['Оплот','Bulwark']}
 };
 const ELITE_ORDER=['warden','ravager','weaver','bulwark'];
-function spawnE(type,x,y,mul){
+function spawnE(type,x,y,mul,force){
   /* Кроме волн врагов порождают гнёзда, выводки, засады, элиты и деление при смерти.
      Раньше они обходили и потолок, и передышку — отсюда толпы «из ниоткуда». */
-  if(type!=='hauler'){
+  if(type!=='hauler'&&!force){
     if(W.enemies.length>=(QUAL?110:170)) return;
     if(W.lull>0 && rng()<.6) return;
   }
@@ -2378,7 +2396,18 @@ function waves(dt){
   const lullK=W.lull>0?.3:1;
   /* потолок ставится на итоговый темп, после наката и биома */
   const raw=(.75+W.t/34)*B.spawn*rhythm*(W.hold&&W.hold.inside?1.35:1);
-  W.spawnAcc+=dt*Math.min(W.surge?10:7,raw)*lullK*(W.baseWave||1);
+  /* первые две миссии проходились слишком легко: каждые 40 с — накат волны,
+     и с каждым накатом общий поток чуть плотнее */
+  let earlyK=1;
+  if(W.mid==='m1'||W.mid==='m2'){
+    const wv=Math.floor(W.t/40);
+    earlyK=1+Math.min(.6,wv*.1);
+    if(wv>(W.earlyWave||0)&&W.t>5){ W.earlyWave=wv;
+      const pk=poolFor(), n=Math.min(18,6+wv*2), a0=rr(0,TAU), d0=Math.max(VW,VH)*.72+rr(150,300);
+      for(let q=0;q<n;q++){ const a=a0+rr(-.45,.45), dq=d0+rr(0,140);
+        spawnE(rpick(pk),W.p.x+Math.cos(a)*dq,W.p.y+Math.sin(a)*dq); }
+      toast(tt('ВОЛНА','WAVE')); S.thud(); } }
+  W.spawnAcc+=dt*Math.min(W.surge?10:7,raw)*lullK*(W.baseWave||1)*earlyK;
   /* запас появления не копится сверх трёх: иначе после массового убийства
      накопленное высыпалось толпой за один кадр */
   if(W.enemies.length>=cap) W.spawnAcc=Math.min(W.spawnAcc,1);
@@ -2467,12 +2496,17 @@ let SHK=0,toastMsg=null,HITSTOP=0;
 function hitstop(v){ if(!REDUCED)HITSTOP=Math.max(HITSTOP,v); }
 function shake(n){ if(!REDUCED&&OPT.shake)SHK=Math.max(SHK,n); }
 function toast(t){ toastMsg={t:2.6,txt:t}; }
+/* подсказки первого выезда: на компьютере — про клавиши, на телефоне — про кнопки */
 const TUTOR=[
- [1.5,['WASD — движение, мышь — прицел','WASD to move, mouse to aim']],
- [9,()=>tt('ЛКМ — ','LMB — ')+L(ABILITIES[W.ab1.id].name)+tt(' · ПКМ — ',' · RMB — ')+L(ABILITIES[W.ab2.id].name)],
- [19,['ПРОБЕЛ — рывок: во время него вы неуязвимы','SPACE to dash — you are invulnerable during it']],
+ [1.5,()=>TOUCH?tt('Левый стик — движение, правый — прицел','Left stick moves, right stick aims')
+               :tt('WASD — движение, мышь — прицел','WASD to move, mouse to aim')],
+ [9,()=>(TOUCH?tt('Кнопка 1 — ','Button 1 — '):tt('ЛКМ — ','LMB — '))+L(ABILITIES[W.ab1.id].name)
+       +(TOUCH?tt(' · кнопка 2 — ',' · button 2 — '):tt(' · ПКМ — ',' · RMB — '))+L(ABILITIES[W.ab2.id].name)],
+ [19,()=>TOUCH?tt('Кнопка рывка: во время рывка вы неуязвимы','Dash button: you are invulnerable while dashing')
+              :tt('ПРОБЕЛ — рывок: во время него вы неуязвимы','SPACE to dash — you are invulnerable during it')],
  [30,['Собирайте опыт: на новом уровне выбирайте улучшение','Collect experience: each level lets you pick an upgrade']],
- [44,['R — автоогонь, P — пауза','R toggles autofire, P pauses']]
+ [44,()=>TOUCH?tt('Пауза — кнопка вверху справа','Pause — top-right button')
+              :tt('R — автоогонь, P — пауза','R toggles autofire, P pauses')]
 ];
 function story(t){ toastMsg={t:5.2,txt:t,story:1}; S.obj(); }
 
@@ -2523,10 +2557,11 @@ function obsNear(x,y,r){
 }
 /* Докуда достанет луч: крупный камень (радиус от 32) его останавливает.
    Раньше лучи и разряды проходили сквозь гряды, а снаряды — нет. */
-function rayHit(x,y,a,maxL){
+function rayHit(x,y,a,maxL,minR){
+  if(minR===undefined) minR=32;
   const ca=Math.cos(a), sa=Math.sin(a);
   for(let s=26;s<=maxL;s+=26){ const px=x+ca*s, py=y+sa*s;
-    for(const o of obsNear(px,py,10)) if(o.r>=32&&Math.hypot(px-o.x,py-o.y)<o.r) return s-26;
+    for(const o of obsNear(px,py,10)) if(o.r>=minR&&Math.hypot(px-o.x,py-o.y)<o.r) return s-26;
   }
   return maxL;
 }
@@ -2556,6 +2591,7 @@ function addGoal(t,n){
     checkWin(); } } }
 
 const MINE_ARM=5, MINE_RUN=120, MINE_FIX=3.5;
+let CRATER_G=null;   /* градиент воронки создаётся один раз */
 /* Вокруг точки — постройки роя: улей (крупный, держит снаряды), шпиль и кладка
    (мельче, простреливаются). Все непроходимые. Сама точка и проход к ней свободны. */
 function alienCluster(cx,cy){
@@ -2601,7 +2637,10 @@ function updMinePoints(dt){
     if(m.st===4)continue;
     const near=Math.hypot(p.x-m.x,p.y-m.y)<m.r+p.r;
     if(m.st===0){
-      if(near&&still){ m.arm+=dt; if(m.arm>=MINE_ARM){ m.st=2; fx.shock(m.x,m.y,70,'#f0c14b'); S.obj(); } }
+      if(near&&still){ m.arm+=dt;
+        /* закладка тикает, как часы: тик — высокий, так — пониже, дважды в секунду */
+        m.tickT=(m.tickT||0)+dt; if(m.tickT>=.5){ m.tickT-=.5; m.tock=!m.tock; S.tick(m.tock); }
+        if(m.arm>=MINE_ARM){ m.st=2; fx.shock(m.x,m.y,70,'#f0c14b'); S.obj(); } }
       else m.arm=Math.max(0,m.arm-dt*1.6);
     } else if(m.st===2){
       m.t-=dt;
@@ -2729,7 +2768,7 @@ function update(dt){
 
   computeAura(dt);
   for(const id in W.weapons){ const wd=WEAPONS[id];
-    const fire = W.auto || W.aimHold;
+    const fire = (W.auto || W.aimHold) && !W.mining;     /* добыча — руки заняты */
     if(!fire&&wd.cls!=='builder'&&id!=='medic'&&id!=='orbit')continue;
     if(!fire&&(id==='seismic'||id==='medic'))continue;
     wd.tick(W.weapons[id],dt,W.weapons[id].lv); }
@@ -2777,6 +2816,7 @@ function update(dt){
   /* враги */
   for(let i=0;i<W.enemies.length;i++){
     const e=W.enemies[i]; if(e.dead)continue;
+    if(e.rage>0) e.rage-=dt;
     if(e.heatT>0)e.heatT-=dt;
     /* сколько враг провёл за экраном: застрявший у камня нужно вернуть в бой */
     if(W.viewL!==undefined){
@@ -2804,7 +2844,8 @@ function update(dt){
        Math.hypot(W.beacon.x-e.x,W.beacon.y-e.y)<Math.hypot(p.x-e.x,p.y-e.y)*.75){
       tx=W.beacon.x; ty=W.beacon.y; tgtR=W.beacon.r; isBeacon=true; bldTgt=W.beacon; }
     const dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy)||1;
-    const slow=1-(e.slow||0); e.slow=0;
+    /* ярость вылупившихся из гнезда: несколько секунд на треть быстрее */
+    const slow=(1-(e.slow||0))*(e.rage>0?1.35:1); e.slow=0;
     const rgd=ETYPES[e.type]&&ETYPES[e.type].range;
     e.dir=Math.atan2(dy,dx);
     if(rgd&&d<rgd&&!tgt){
@@ -2922,18 +2963,25 @@ function update(dt){
          направлений и выбирает то, где свободного места больше. Решение держится
          полсекунды, пересчитывается редко — иначе дорого и дёргано. */
       e.planT=(e.planT||0)-dt;
+      /* застрял — значит, ближний поиск не нашёл прохода: смотрим дальше и шире.
+         Признак застревания — за секунду почти не приблизился к цели. */
+      e.prgT=(e.prgT||0)-dt;
+      if(e.prgT<=0){ const dn=Math.hypot(tx-e.x,ty-e.y);
+        e.stuck=(e.prgD!==undefined&&e.prgD-dn<18)?Math.min(3,(e.stuck||0)+1):0;
+        e.prgD=dn; e.prgT=1; if(e.stuck) e.planT=0; }
       if(e.planT<=0){
-        e.planT=.5; e.plan=0;
+        e.planT=e.stuck?.9:.5; e.plan=0;
         const bd=Math.atan2(my,mx);
+        const reach=e.stuck?10:6;              /* застрявший прощупывает почти вдвое дальше */
         const freeRun=(ang)=>{ const ca=Math.cos(ang), sa=Math.sin(ang);
-          for(let s=1;s<=6;s++){ const px=e.x+ca*s*42, py=e.y+sa*s*42;
+          for(let s=1;s<=reach;s++){ const px=e.x+ca*s*42, py=e.y+sa*s*42;
             for(const o of obsNear(px,py,e.r+14))
               if(Math.hypot(px-o.x,py-o.y)<o.r+e.r+10) return s*42; }
-          return 260; };
+          return reach*42+8; };
         if(freeRun(bd)<170){
           let best=bd, bs=-1e9;
           for(const off of [0,.5,-.5,1,-1,1.6,-1.6,2.3,-2.3]){
-            const a2=bd+off, f=freeRun(a2), sc=f-Math.abs(off)*46;
+            const a2=bd+off, f=freeRun(a2), sc=f-Math.abs(off)*(e.stuck?22:46);   /* застрявшему не жаль крюка */
             if(sc>bs){ bs=sc; best=a2; } }
           e.plan=best; }
       }
@@ -3382,14 +3430,21 @@ function update(dt){
      Залежь уменьшается на глазах, пока не иссякнет. */
   if(W.ores&&W.ores.length){
     let mining=null, md=1e9;
-    for(const o of W.ores){ if(o.amount<=0)continue;
+    /* добываем только стоя на месте: на ходу кристалл не отдаёт ни крупинки */
+    const still=!(INPUT.mx||INPUT.my)&&Math.hypot(p.vx||0,p.vy||0)<30;
+    if(still) for(const o of W.ores){ if(o.amount<=0)continue;
       const gap=Math.hypot(p.x-o.x,p.y-o.y)-o.r-p.r;
       if(gap<16&&gap<md){ md=gap; mining=o; } }
     W.mining=mining;
+    if(mining) W.oreShow=W.t; else W.mineAcc=0;
     if(mining){
-      const take=Math.min(mining.amount, 17*dt);
-      mining.amount-=take; addGoal('ore_'+mining.kind,take);
-      mining.r=mining.r0*(.42+.58*(mining.amount/mining.amount0));
+      /* начисляем порциями 4 раза в секунду: скорость та же — 7 в секунду,
+         но запас, задание и полоска обновляются реже, а не каждый кадр */
+      W.mineAcc=(W.mineAcc||0)+dt;
+      if(W.mineAcc>=.25){
+        const take=Math.min(mining.amount, 7*W.mineAcc); W.mineAcc=0;
+        mining.amount-=take; addGoal('ore_'+mining.kind,take);
+        mining.r=mining.r0*(.42+.58*(mining.amount/mining.amount0)); }
       const a=Math.atan2(p.y-mining.y,p.x-mining.x);
       loopPoke('weld1',1,.12,.04);            /* ровный звук добычи вместо редких щелчков */
       if(gate('mine'+mining.kind,55)){
@@ -3887,8 +3942,10 @@ function renderRelicRow(){
   box.innerHTML=list.length
     ? `<div class="rlabel">${U('relicHave')} — ${L(CLASSES[selCls].name)}</div>`+list.map(id=>{
         const r=RELICS.find(x=>x.id===id); if(!r)return '';
-        return `<div class="rchip" title="${esc(L(r.desc))}"><span style="color:${r.col}">${r.glyph}</span>${L(r.name)}</div>`; }).join('')
+        return `<div class="rchip" data-r="${r.id}" title="${esc(L(r.desc))}"><span style="color:${r.col}">${r.glyph}</span>${L(r.name)}</div>`; }).join('')
     : '';
+  box.querySelectorAll('.rchip').forEach(c=>c.addEventListener('click',ev=>{ ev.stopPropagation();
+    const r=RELICS.find(x=>x.id===c.dataset.r); if(r) showInfo(r.glyph+'  '+L(r.name), L(r.desc)); }));
 }
 function openRelic(){
   const avail=RELICS.filter(r=>W.relics.indexOf(r.id)<0);
@@ -4402,9 +4459,9 @@ function render(){
     /* после взрыва — тёмная воронка с выгоревшей землёй и обломками по краю */
     if(m.st===4){ if(!vis(m.x,m.y,90))continue;
       ctx.save(); ctx.translate(m.x,m.y); ctx.rotate(m.crater||0);
-      const rg=ctx.createRadialGradient(0,0,6,0,0,62);
-      rg.addColorStop(0,'rgba(12,10,8,.78)'); rg.addColorStop(.55,'rgba(24,19,14,.5)'); rg.addColorStop(1,'rgba(24,19,14,0)');
-      ctx.fillStyle=rg; ctx.beginPath(); ctx.ellipse(0,0,62,50,0,0,TAU); ctx.fill();
+      if(!CRATER_G){ CRATER_G=ctx.createRadialGradient(0,0,6,0,0,62);
+        CRATER_G.addColorStop(0,'rgba(12,10,8,.78)'); CRATER_G.addColorStop(.55,'rgba(24,19,14,.5)'); CRATER_G.addColorStop(1,'rgba(24,19,14,0)'); }
+      ctx.fillStyle=CRATER_G; ctx.beginPath(); ctx.ellipse(0,0,62,50,0,0,TAU); ctx.fill();
       ctx.fillStyle='rgba(8,6,5,.7)'; ctx.beginPath(); ctx.ellipse(0,0,20,16,0,0,TAU); ctx.fill();
       ctx.fillStyle='rgba(70,58,44,.55)';
       for(let q=0;q<9;q++){ const a=q*TAU/9+(q%3)*.3, d=24+(q*7)%14;
@@ -4423,11 +4480,15 @@ function render(){
     ctx.globalAlpha=.95; ctx.lineWidth=4; ctx.lineCap='round';
     ctx.beginPath(); ctx.arc(m.x,m.y,m.r+7,-Math.PI/2,-Math.PI/2+TAU*clamp(k,0,1)); ctx.stroke();
     ctx.lineCap='butt';
-    if(m.st===2||m.st===3){
-      ctx.globalAlpha=.9; ctx.fillStyle=col; ctx.font='700 13px '+uiFont(); ctx.textAlign='center';
-      ctx.fillText(fmt(Math.max(0,m.t)), m.x, m.y+5);
-    }
     ctx.restore();
+    /* сам заряд: проявляется по мере закладки, дальше стоит на месте */
+    const dal = m.st===0 ? clamp(m.arm/MINE_ARM,0,1) : 1;
+    if(dal>.02) drawDetonator(m.x,m.y,m,dal,T);
+    if(m.st===2||m.st===3){
+      ctx.save(); ctx.globalAlpha=.92; ctx.fillStyle=col; ctx.font='700 13px '+uiFont(); ctx.textAlign='center';
+      ctx.fillText(fmt(Math.max(0,m.t)), m.x, m.y-m.r-14);      /* отсчёт над кругом: в центре стоит заряд */
+      ctx.restore();
+    }
   }
 
   /* гнёзда */
@@ -4988,10 +5049,8 @@ function render(){
 }
 
 /* ---------- декор биомов ---------- */
-function drawProps(B,LB,RB,UB,DB,T){
-  for(const q of W.props){
-    if(q.x<LB-60||q.x>RB+60||q.y<UB-60||q.y>DB+60)continue;
-    const x=q.x,y=q.y,r=q.r;
+/* один элемент декора в точке x,y — им рисуются и картинки кэша, и живые виды */
+function drawPropOne(q,x,y,r,B,T){
     switch(q.k){
       case 'slab':{ ctx.strokeStyle='rgba(0,0,0,.22)'; ctx.lineWidth=2;
         ctx.strokeRect(x-r*1.6,y-r*1.1,r*3.2,r*2.2);
@@ -5068,6 +5127,13 @@ function drawProps(B,LB,RB,UB,DB,T){
         ctx.globalAlpha=.14; ctx.fillStyle='#9ff0c0'; blobPath(x,y,r*.45,0,q.a+2,.14); ctx.fill();
         ctx.globalAlpha=1; break; }
     }
+}
+function drawProps(B,LB,RB,UB,DB,T){
+  for(const q of W.props){
+    if(q.x<LB-60||q.x>RB+60||q.y<UB-60||q.y>DB+60)continue;
+    if(q.k==='shroom'||q.k==='pod'){ drawPropOne(q,q.x,q.y,q.r,B,T); continue; }   /* живые — каждый кадр */
+    if(!q.spr||q.spr.sc!==sprScale()) q.spr=makeSprite(q.r*2.8+10,hf=>drawPropOne(q,hf,hf,q.r,B,0));
+    drawSprite(q.spr,q.x,q.y);
   }
 }
 /* Залежь: гранёный кристалл со свечением. Чем больше осталось, тем он крупнее. */
@@ -5179,6 +5245,36 @@ function drawShip(cls,cx,cy,s,plume){
     shipGlow(cx,cy+70*s,46*s,'rgba(200,107,255,.8)',.55);
   }
 }
+/* Заряд с детонатором, вид сверху: шашка с ремнями, коробка с экранчиком,
+   два провода и огонёк. Огонёк мигает тем чаще, чем меньше осталось; при сбое — дрожит рыжим. */
+function drawDetonator(x,y,m,al,T){
+  ctx.save(); ctx.globalAlpha=al;
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x+2,y+9,19,7,0,0,TAU); ctx.fill();
+  /* шашка */
+  ctx.fillStyle='#4d5240'; ctx.beginPath(); ctx.roundRect(x-17,y-7,34,16,5); ctx.fill();
+  ctx.strokeStyle='#2a2d22'; ctx.lineWidth=1.4; ctx.stroke();
+  ctx.fillStyle='#6b7058'; ctx.fillRect(x-11,y-7,3,16); ctx.fillRect(x+8,y-7,3,16);
+  /* провода к концам шашки */
+  ctx.lineWidth=1.6; ctx.lineCap='round';
+  ctx.strokeStyle='#d9534f'; ctx.beginPath(); ctx.moveTo(x-6,y-6); ctx.quadraticCurveTo(x-14,y-15,x-16,y-3); ctx.stroke();
+  ctx.strokeStyle='#5b8fd9'; ctx.beginPath(); ctx.moveTo(x+6,y-6); ctx.quadraticCurveTo(x+14,y-15,x+16,y-3); ctx.stroke();
+  ctx.lineCap='butt';
+  /* коробка детонатора с экранчиком */
+  ctx.fillStyle='#2b2f36'; ctx.beginPath(); ctx.roundRect(x-8,y-11,16,11,2.5); ctx.fill();
+  ctx.strokeStyle='#14171b'; ctx.lineWidth=1.1; ctx.stroke();
+  const armed=m.st===2||m.st===3;
+  ctx.fillStyle=armed?'#9fe07a':'#3a4a33'; ctx.fillRect(x-5.5,y-8.5,8,3.5);
+  /* огонёк */
+  let on=false, lc='#ff4a3a';
+  if(m.st===2){ const per=clamp(m.t/40,.14,.9); on=(T%per)<per*.45; }
+  else if(m.st===3){ on=Math.sin(T*31)>0; lc='#ffae3a'; }
+  else on=Math.sin(T*6)>.2;
+  if(on){ softGlow(x+5,y-6.8,9,lc,.9); }
+  ctx.fillStyle=on?lc:'#5a2a26'; ctx.beginPath(); ctx.arc(x+5,y-6.8,1.9,0,TAU); ctx.fill();
+  /* сбой — искрит */
+  if(m.st===3&&Math.random()<.25) fx.spark(x+(Math.random()-.5)*14,y-8,-Math.PI/2+(Math.random()-.5),'#ffd08a',2);
+  ctx.restore();
+}
 function drawOre(o){
   const O=ORES[o.kind], x=o.x, y=o.y, r=o.r, T=W.t;
   const pu=.6+.4*Math.sin(T*1.8+o.ph);
@@ -5251,20 +5347,40 @@ function drawAlien(o){
       ctx.strokeStyle='rgba(30,40,20,.5)'; ctx.lineWidth=1.1; ctx.beginPath(); ctx.ellipse(X,Y,R2,R2*.82,0,0,TAU); ctx.stroke(); }
   }
 }
+/* Кэш декораций. Камни и большая часть декора неподвижны, но вычерчивались кривыми
+   каждый кадр — это была половина всех команд рисования. Теперь каждый рисуется
+   один раз в картинку под текущий масштаб экрана, а кадр лишь ставит её. */
+function sprScale(){ return DPR*ZOOM; }
+function makeSprite(half,drawFn){
+  const sc=sprScale(), px=Math.max(2,Math.ceil(half*2*sc));
+  const c=document.createElement('canvas'); c.width=c.height=px;
+  const g=c.getContext('2d'); g.setTransform(px/(half*2),0,0,px/(half*2),0,0);
+  const saved=ctx; ctx=g;
+  try{ drawFn(half); } finally{ ctx=saved; }
+  return {c,half,sc}; }
+function drawSprite(s,x,y){ ctx.drawImage(s.c,x-s.half,y-s.half,s.half*2,s.half*2); }
+/* далёкие картинки выгружаем, чтобы память не копилась по ходу забега */
+function spritesEvict(){ if(!W)return; const lim=Math.max(VW,VH)*1.6;
+  for(const list of [W.obstacles,W.props]) for(const o of list)
+    if(o.spr&&Math.hypot(o.x-cam.x,o.y-cam.y)>lim) o.spr=null; }
+function drawRockAt(o,x,y,B){
+  shadow(x,y,o.r,.34);
+  ctx.fillStyle=B.accent; blobPath(x,y,o.r,0,o.s,.07); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.055)'; blobPath(x-o.r*.12,y-o.r*.17,o.r*.74,0,o.s+1,.07); ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=2.5; blobPath(x,y,o.r,0,o.s,.07); ctx.stroke();
+  if(o.k===0){ ctx.strokeStyle='rgba(120,95,70,.5)'; ctx.lineWidth=2.4; ctx.lineCap='round';
+    for(let i=0;i<3;i++){ const a=o.s+i*1.3;
+      ctx.beginPath(); ctx.moveTo(x+Math.cos(a)*o.r*.5,y+Math.sin(a)*o.r*.5);
+      ctx.lineTo(x+Math.cos(a+.2)*o.r*1.25,y+Math.sin(a+.2)*o.r*1.1); ctx.stroke(); }
+    ctx.lineCap='butt'; }
+  else if(o.k===1){ ctx.strokeStyle='rgba(0,0,0,.22)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(x-o.r*.6,y-o.r*.2); ctx.lineTo(x+o.r*.5,y+o.r*.3); ctx.stroke(); }
+}
 function drawObstacle(o,B){
   if(o.ore){ drawOre(o.ore); return; }
   if(o.alien){ drawAlien(o); return; }
-  shadow(o.x,o.y,o.r,.34);
-  ctx.fillStyle=B.accent; blobPath(o.x,o.y,o.r,0,o.s,.07); ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,.055)'; blobPath(o.x-o.r*.12,o.y-o.r*.17,o.r*.74,0,o.s+1,.07); ctx.fill();
-  ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=2.5; blobPath(o.x,o.y,o.r,0,o.s,.07); ctx.stroke();
-  if(o.k===0){ ctx.strokeStyle='rgba(120,95,70,.5)'; ctx.lineWidth=2.4; ctx.lineCap='round';
-    for(let i=0;i<3;i++){ const a=o.s+i*1.3;
-      ctx.beginPath(); ctx.moveTo(o.x+Math.cos(a)*o.r*.5,o.y+Math.sin(a)*o.r*.5);
-      ctx.lineTo(o.x+Math.cos(a+.2)*o.r*1.25,o.y+Math.sin(a+.2)*o.r*1.1); ctx.stroke(); }
-    ctx.lineCap='butt'; }
-  else if(o.k===1){ ctx.strokeStyle='rgba(0,0,0,.22)'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(o.x-o.r*.6,o.y-o.r*.2); ctx.lineTo(o.x+o.r*.5,o.y+o.r*.3); ctx.stroke(); }
+  if(!o.spr||o.spr.sc!==sprScale()) o.spr=makeSprite(o.r*1.6+8,hf=>drawRockAt(o,hf,hf,B));
+  drawSprite(o.spr,o.x,o.y);
 }
 function drawCrate(c,T){
   const b=Math.sin(T*2.4+c.ph)*3;
@@ -6089,17 +6205,27 @@ function drawOffscreenMarkers(ox,oy){
 }
 
 /* =============================================================== HUD */
+/* Интерфейс боя меняет страницу только когда значение правда изменилось: раньше
+   каждый кадр переписывались часы, очки, здоровье — ~8 правок страницы за кадр,
+   и браузер всякий раз пересчитывал панель. Это лишний нагрев. */
+const HUDC={};
+function setT(id,v){ const k='t'+id; if(HUDC[k]===v)return; HUDC[k]=v; el(id).textContent=v; }
+function setH(id,v){ const k='h'+id; if(HUDC[k]===v)return; HUDC[k]=v; el(id).innerHTML=v; }
+function setS(id,p,v){ const k='s'+id+p; if(HUDC[k]===v)return; HUDC[k]=v; el(id).style[p]=v; }
+function setP(id,p,v){ const k='p'+id+p; if(HUDC[k]===v)return; HUDC[k]=v; el(id).style.setProperty(p,v); }
+const q4=v=>Math.round(v*400)/400;
+function setHid(id,v){ const k='v'+id; if(HUDC[k]===v)return; HUDC[k]=v; el(id).hidden=v; }
 function syncHud(){ if(!W)return; const p=W.p;
-  el('clock').textContent=fmt(W.t);
-  el('lvl').textContent=p.level; el('kills').textContent=W.score||0;
-  el('hpFill').style.transform='scaleX('+clamp(p.hp/p.hpMax,0,1)+')';
+  setT('clock',fmt(W.t));
+  setT('lvl',p.level); setT('kills',W.score||0);
+  setS('hpFill','transform','scaleX('+q4(clamp(p.hp/p.hpMax,0,1))+')');
   { const sf=el('shFill');
     if(sf&&sf!==NULLEL){ const on=p.shMax>0;
       if(sf.hidden===on) sf.hidden=!on;
-      if(on) sf.style.transform='scaleX('+clamp(p.sh/p.hpMax,0,1)+')'; } }
-  el('hpTxt').innerHTML='<span style="color:#ef8a72">'+Math.max(0,Math.ceil(p.hp))+' / '+Math.round(p.hpMax)+'</span>'
-    +(p.shMax>0?' <span style="color:#7cc4ff">+'+Math.ceil(p.sh)+'</span>':'');
-  el('xpFill').style.transform='scaleX('+clamp(p.xp/p.xpNext,0,1)+')';
+      if(on) sf.style.transform='scaleX('+q4(clamp(p.sh/p.hpMax,0,1))+')'; } }
+  setH('hpTxt','<span style="color:#ef8a72">'+Math.max(0,Math.ceil(p.hp))+' / '+Math.round(p.hpMax)+'</span>'
+    +(p.shMax>0?' <span style="color:#7cc4ff">+'+Math.ceil(p.sh)+'</span>':''));
+  setS('xpFill','transform','scaleX('+q4(clamp(p.xp/p.xpNext,0,1))+')');
   const lb=el('lvlBtn');
   if(lb&&lb!==NULLEL){
     /* если всё уже на максимуме, кнопка не нужна: иначе она превращалась
@@ -6108,15 +6234,15 @@ function syncHud(){ if(!W)return; const p=W.p;
       && !el('lvlScreen').classList.contains('on') && !el('relicScreen').classList.contains('on');
     if(lb.hidden===want) lb.hidden=!want;
     if(want){ const syn=W.synthPending;
-      el('lvlBtnT').textContent=syn?U('synthGot'):U('lvlReady');
+      setT('lvlBtnT',syn?U('synthGot'):U('lvlReady'));
       lb.querySelector('b').textContent=syn?'':'+'+pendingLevels; }
   }
   const C=CLASSES[W.cls];
   const k1=clamp(1-p.ab1Cd/(p.ab1Max*mCool()),0,1), k2=clamp(1-p.ab2Cd/(p.ab2Max*mCool()),0,1);
-  el('r1').style.setProperty('--p',(k1*100)+'%'); el('r2').style.setProperty('--p',(k2*100)+'%');
-  el('g1').style.color=k1>=1?C.color:'#575e69'; el('g2').style.color=k2>=1?C.color:'#575e69';
-  el('c1').textContent=p.ab1Cd>.15?Math.ceil(p.ab1Cd):'';
-  el('c2').textContent=p.ab2Cd>.15?Math.ceil(p.ab2Cd):'';
+  setP('r1','--p',Math.round(k1*100)+'%'); setP('r2','--p',Math.round(k2*100)+'%');
+  setS('g1','color',k1>=1?C.color:'#575e69'); setS('g2','color',k2>=1?C.color:'#575e69');
+  setT('c1',p.ab1Cd>.15?Math.ceil(p.ab1Cd):'');
+  setT('c2',p.ab2Cd>.15?Math.ceil(p.ab2Cd):'');
   if(TOUCH){ const a1=el('tcAb1'), a2=el('tcAb2'), ad=el('tcDash');
     /* свободные места под постройки: лимит минус стоящие на поле.
        Лимит уже учитывает улучшения, а снятые и истекшие постройки
@@ -6145,19 +6271,28 @@ function syncHud(){ if(!W)return; const p=W.p;
     if(a1&&a1!==NULLEL) a1.style.setProperty('--cd',k1.toFixed(3));
     if(a2&&a2!==NULLEL) a2.style.setProperty('--cd',k2.toFixed(3));
     if(ad&&ad!==NULLEL) ad.style.setProperty('--cd',kd.toFixed(3)); }
-  el('soundBtn').classList.toggle('off',muted);
-  const ap=el('autoPill'); ap.textContent='R '+(W.auto?'⦿':'○'); ap.style.color=W.auto?'#7fd98a':'#8b93a1';
+  if(HUDC.snd!==muted){ HUDC.snd=muted; el('soundBtn').classList.toggle('off',muted); }
+  setT('autoPill','R '+(W.auto?'⦿':'○')); setS('autoPill','color',W.auto?'#7fd98a':'#8b93a1');
   const useEn=ABILITIES[W.ab1.id].hold||ABILITIES[W.ab2.id].hold;
-  el('enBar').hidden=!useEn;
-  if(useEn)el('enFill').style.transform='scaleX('+clamp(p.energy/p.energyMax,0,1)+')';
-  const cp=el('carryPill');
-  if(W.carry>0){ cp.hidden=false; cp.textContent='✚ '+tt('ЯЩИК','CRATE'); }
-  else cp.hidden=true;
-  const rp=el('relicPill');
-  if(W.relics.length){ rp.hidden=false;
-    rp.innerHTML=W.relics.map(id=>{ const r=RELICS.find(x=>x.id===id);
-      return r?`<span style="color:${r.col}">${r.glyph}</span>`:''; }).join(' '); }
-  else rp.hidden=true; }
+  setHid('enBar',!useEn);
+  if(useEn)setS('enFill','transform','scaleX('+q4(clamp(p.energy/p.energyMax,0,1))+')');
+  { const og=W.goals.filter(g=>g.t.indexOf('ore_')===0);
+    if(og.length&&HUDC.oreFor!==W){ HUDC.oreFor=W;
+      el('oreBars').innerHTML=og.map(g=>{ const O=ORES[g.t.slice(4)];
+        return `<div class="orebar"><div class="ob"><i id="of_${g.t}" style="background:${O.col}"></i></div><b id="ot_${g.t}" style="color:${O.col}">0</b></div>`; }).join('');
+      for(const k in HUDC) if(k.indexOf('of_ore')>=0||k.indexOf('ot_ore')>=0) delete HUDC[k]; }
+    if(!og.length&&HUDC.oreFor!==W){ HUDC.oreFor=W; el('oreBars').innerHTML=''; }
+    for(const g of og){
+      setS('of_'+g.t,'transform','scaleX('+q4(Math.min(1,g.cur/g.n))+')');
+      setT('ot_'+g.t,Math.floor(Math.min(g.cur,g.n))+'/'+g.n); }
+    const show=!!(W.mining||(W.oreShow!==undefined&&W.t-W.oreShow<.2));
+    if(HUDC.oreOn!==show){ HUDC.oreOn=show; el('oreBars').classList.toggle('on',show); } }
+  if(W.carry>0){ setHid('carryPill',false); setT('carryPill','✚ '+tt('ЯЩИК','CRATE')); }
+  else setHid('carryPill',true);
+  if(W.relics.length){ setHid('relicPill',false);
+    setH('relicPill',W.relics.map(id=>{ const r=RELICS.find(x=>x.id===id);
+      return r?`<span style="color:${r.col}">${r.glyph}</span>`:''; }).join(' ')); }
+  else setHid('relicPill',true); }
 function renderLoadout(){ let h='';
   for(const id in W.weapons){ const d=WEAPONS[id];
     h+=`<div class="chip"><span class="g" style="color:${d.col||'#dde2ea'}">${d.glyph}</span>${L(d.name)}<b>${W.weapons[id].lv}</b></div>`; }
@@ -6180,7 +6315,7 @@ function renderObjectives(){ if(!W)return;
 /* ============================================================== ЦИКЛ */
 let TICK=0,running=false,paused=false,last=0,acc=0,objTick=0;
 /* настройки игрока + автоподстройка качества под частоту кадров */
-const OPT={shake:1,blood:1,minimap:1,quality:'auto',stick:1,aimAssist:0,volM:1,volMu:1,volS:1};
+const OPT={shake:1,blood:1,minimap:1,quality:'auto',stick:1,aimAssist:0,volM:1,volMu:1,volS:1,fps:60};
 try{ const o=JSON.parse(localStorage.getItem('dustlineOpt')||'{}'); Object.assign(OPT,o); }catch(e){}
 function saveOpt(){ try{ localStorage.setItem('dustlineOpt',JSON.stringify(OPT)); }catch(e){} }
 /* три размера джойстика: мелкий точнее, крупный отзывчивее */
@@ -6216,9 +6351,20 @@ function logErr(tag,e){
       box.textContent='⚠ '+tag+': '+((e&&e.message)||e); } }
   else if(ERRN===4) console.error(tt('[DUSTLINE] дальнейшие сообщения подавлены','[DUSTLINE] further messages suppressed'));
 }
+let lastDraw=0;
 function frame(ts){ requestAnimationFrame(frame);
+  /* В бою — столько кадров, сколько выбрано в паузе (60/40/30).
+     На паузе, в окнах улучшений и в меню картинка стоит под панелью — раньше она
+     всё равно перерисовывалась 60 раз в секунду. Теперь 12: этого хватает, а телефон
+     не греется впустую. Заставка с планетой анимирована — ей полный темп. */
+  const busy=running&&!paused&&W&&!W.over&&!W.won;
+  const cap=busy?(OPT.fps||60):(planetActive?(OPT.fps||60):12);
+  /* копим «долг» по времени: так 40 кадров на экране 60 Гц получаются честными —
+     интервалы чередуются через один и через два обновления экрана */
+  if(cap<60){ const iv=1000/cap; if(ts-lastDraw<iv-1.5) return; lastDraw=Math.max(lastDraw+iv,ts-iv); }
+  else lastDraw=ts;
   const raw=(ts-last)/1000; last=ts;
-  if(running&&!paused&&W&&!W.over&&!W.won){
+  if(busy){
     if(HITSTOP>0){ HITSTOP-=Math.min(raw||0,.05); acc=Math.min(acc,STEP); }
     acc+=Math.min(raw||0,.25); let n=0;
     /* догон ограничен тремя шагами, остаток отбрасываем: пять шагов на просевшем
@@ -6231,8 +6377,11 @@ function frame(ts){ requestAnimationFrame(frame);
     try{ syncHud(); }catch(e){ logErr('hud',e); }
     objTick+=raw; if(objTick>.35){ objTick=0; try{ renderObjectives(); }catch(e){ logErr('objectives',e); } }
   }
-  quality(raw||.016);
+  /* качество судим по запасу кадра: при ограничении в 30 кадр длиннее по замыслу,
+     а не потому что телефон не успевает */
+  if(busy) quality((raw||.016)*(OPT.fps||60)/60);
   humIdle(); fireIdle(); loopsIdle();
+  if((TICK&127)===0) spritesEvict();
   try{ resizeCheck(); tcSync(); rotSync(); }catch(e){}
   if(planetActive){ try{ drawPlanetFrame(Math.min(raw||0,.05)); }catch(e){ logErr('planet',e); } }
   try{ render(); }catch(e){ logErr('render',e); } }
@@ -6282,12 +6431,17 @@ function heroPreview(cid,cvs){
   }
   g.restore();
 }
+/* минералы героя под очками — цветом своего минерала; пока ничего нет, строки нет */
+function oreLine(id){ const po=progress.ore&&progress.ore[id]; if(!po)return '';
+  const parts=Object.keys(ORES).filter(k=>po[k]>0).map(k=>`<span style="color:${ORES[k].col}">◆ ${po[k]}</span>`);
+  return parts.length?`<div class="pts ore">${parts.join('&nbsp;&nbsp;')}</div>`:''; }
 function buildMenus(){
   el('clsGrid').innerHTML=Object.keys(CLASSES).map(id=>{ const c=CLASSES[id];
     return `<div class="opt" tabindex="0" data-id="${id}" style="color:${c.color}">
       <div class="art"><canvas></canvas></div>
       <div class="bd"><h3>${L(c.name)}</h3>
       <div class="pts">${U('pts')}: <b>${(progress.pts&&progress.pts[id])||0}</b></div>
+      ${oreLine(id)}
       <p>${L(c.tag)}</p><ul>${c.bullets.map(b=>'<li>'+L(b)+'</li>').join('')}</ul></div></div>`; }).join('');
   makeRail('clsGrid');
   /* язык равняем по правому краю последней карточки, а не по краю экрана */
@@ -6541,14 +6695,16 @@ addEventListener('resize', markScroll);
 const SEL={ab1:null,ab2:null};
 function abLabel(i){ return CLASSES[selCls]&&CLASSES[selCls].fixed
   ? (i===1?tt('ОСНАЩЕНИЕ 1','LOADOUT 1'):tt('ОСНАЩЕНИЕ 2','LOADOUT 2'))
-  : (i===1?'ЛКМ':'ПКМ'); }
+  : (TOUCH?(i===1?tt('КНОПКА 1','BUTTON 1'):tt('КНОПКА 2','BUTTON 2')):(i===1?'ЛКМ':'ПКМ')); }
 function renderAbils(){
   const C=CLASSES[selCls]; if(!C)return;
   el('abStep').textContent=L(C.name);
   el('abTitle').textContent=C.fixed?tt('Выбор оснащения','Choose your loadout'):tt('Выбор способностей','Choose your abilities');
   el('abSub').textContent=C.fixed
-    ? tt('Пулемётная и тесла-турель, усилитель и боевой спутник уже в комплекте. Выберите ещё два узла.',
+    ? tt('Пулемётная и тесла-турель, усилитель и помощники уже в комплекте. Выберите ещё два узла.',
          'The autogun turret, tesla turret and amplifier are already fitted. Pick two more modules.')
+    : TOUCH ? tt('Первая выбранная встанет на кнопку 1, вторая — на кнопку 2. Повторное нажатие снимает выбор.',
+                 'The first pick goes to button 1, the second to button 2. Tap again to unassign.')
     : tt('Первая выбранная встанет на ЛКМ, вторая — на ПКМ. Повторное нажатие снимает выбор.',
          'The first pick goes to LMB, the second to RMB. Click again to unassign.');
   el('abGrid').innerHTML=C.abils.map(id=>{
@@ -6733,18 +6889,21 @@ function renderPause(){
     `<button class="tg ${OPT.blood?'on':''}" data-k="blood">${U('optBlood')}</button>`+
     `<button class="tg ${OPT.minimap?'on':''}" data-k="minimap">${U('optMap')}</button>`+
     `<button class="tg on" data-k="quality">${U('optQual')}: ${qn}</button>`+
+    `<button class="tg on" data-k="fps">${U('optFps')}: ${OPT.fps||60}</button>`+
     (TOUCH?`<button class="tg on" data-k="stick">${U('optStick')}: ${[U('stickS'),U('stickM'),U('stickL')][OPT.stick]}</button>`:'')+
     (TOUCH?`<button class="tg ${OPT.aimAssist?'on':''}" data-k="aimAssist">${U('optAim')}</button>`:'')+
     `<div class="fpsline">FPS ${FPS} · ${W.enemies.length} ${tt('целей','targets')}</div>`;
   el('pauseOpt').querySelectorAll('.tg').forEach(n=>n.addEventListener('click',()=>{
     const k=n.dataset.k;
     if(k==='quality') OPT.quality={auto:'high',high:'low',low:'auto'}[OPT.quality];
+    else if(k==='fps') OPT.fps={60:40,40:30,30:60}[OPT.fps||60];
     else if(k==='stick'){ OPT.stick=(OPT.stick+1)%3; applyStick(); }
     else OPT[k]=OPT[k]?0:1;
     saveOpt(); renderPause(); S.ready(); }));
 }
 /* показывается один раз при первом бое на сенсоре */
 function maybeTutorial(){
+  return false;              /* инструкцию перед боем убрали по просьбе автора */
   if(!TOUCH) return false;
   try{ if(localStorage.getItem('dustlineTut')) return false; }catch(e){}
   const cell=(h,p)=>`<div class="opt" style="width:210px;color:#7cc4ff;cursor:default">
@@ -6863,6 +7022,9 @@ function winRun(){ if(W.won||W.over)return;
   { const gain=(W.score||0) + W.relics.length*80;
     progress.pts=progress.pts||{};
     progress.pts[W.cls]=(progress.pts[W.cls]||0)+gain;
+  /* добытые минералы идут герою в копилку — только за пройденное задание */
+  progress.ore=progress.ore||{}; const po=progress.ore[W.cls]=progress.ore[W.cls]||{};
+  for(const g of W.goals) if(g.t.indexOf('ore_')===0){ const k=g.t.slice(4); po[k]=(po[k]||0)+Math.floor(g.cur); }
     W.ptsGain=gain; }
   achGive('first');
   if(W.mid==='m6')achGive('m6');
@@ -7175,7 +7337,7 @@ function tcSync(){
 /* автоприцел: ближайший враг, иначе по направлению хода */
 let AIMX=0, AIMY=0;
 /* ближайший враг в секторе: half — половина угла сектора в радианах */
-function nearestCone(x,y,r,ang,half,skip){
+function nearestCone(x,y,r,ang,half,skip,noLos){
   /* цель за камнем не годится: разряд его не пробивает */
   let best=null,bd=r*r;
   for(const e of W.enemies){ if(e.dead)continue; if(skip&&skip.indexOf(e)>=0)continue;
@@ -7183,7 +7345,7 @@ function nearestCone(x,y,r,ang,half,skip){
     let da=Math.atan2(dy,dx)-ang;
     while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
     if(Math.abs(da)>half)continue;
-    if(!losClear(x,y,e.x,e.y))continue;
+    if(!noLos&&!losClear(x,y,e.x,e.y))continue;
     bd=d2; best=e; }
   return best;
 }
