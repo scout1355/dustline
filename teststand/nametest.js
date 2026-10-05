@@ -1,0 +1,20 @@
+const fs=require('fs'),{JSDOM}=require('jsdom');
+const html=fs.readFileSync('dustline-v17.html','utf8').replace('function unlocked(i){ if(i===0)return true;','function unlocked(i){ return true;');
+const stub=new Proxy({},{get:(t,k)=>{ if(k==='canvas')return{width:8,height:8};
+  if(['createRadialGradient','createLinearGradient','createPattern'].includes(k))return()=>({addColorStop(){}});
+  if(k==='measureText')return()=>({width:10}); return()=>undefined;},set:()=>true});
+const dom=new JSDOM(html,{url:'https://localhost/',runScripts:'dangerously',pretendToBeVisual:true,beforeParse(w){
+  w.HTMLCanvasElement.prototype.getContext=()=>stub; w.CanvasRenderingContext2D=function(){}; w.CanvasRenderingContext2D.prototype={};
+  w.matchMedia=q=>({matches:false,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}}); require('./audio.js')(w);}});
+const w=dom.window,d=w.document,click=n=>n&&n.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+const step=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{ await step(400);
+  console.log('карточки героев:', [...d.querySelectorAll('#clsGrid .opt h3')].map(x=>x.textContent).join(' · '));
+  const all=[...d.body.querySelectorAll('*')].filter(n=>n.tagName!=='SCRIPT'&&n.tagName!=='STYLE'&&n.children.length===0).map(n=>n.textContent).join(' '); console.log('старые имена на экране:', (all.match(/ВЕКТОР|ГРОМ\b|Вектор|Гром\b/g)||[]).length);
+  click(d.querySelectorAll('#clsGrid .opt')[1]); await step(50); click(d.getElementById('toMis')); await step(120);
+  const ab=[...d.querySelectorAll('#abGrid .abcard')]; click(ab[0]); await step(30); click(ab[1]); await step(30);
+  click(d.getElementById('abGo')); await step(150);
+  click(d.querySelector('#misGrid .opt:not(.locked)')); await step(50);
+  click(d.getElementById('startBtn')); await step(200); const bg=d.getElementById('briefGo'); if(bg) click(bg); await step(300);
+  console.log('плашка героя в бою:', d.getElementById('clsPill').textContent);
+  process.exit(0); })();

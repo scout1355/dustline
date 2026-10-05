@@ -1,0 +1,33 @@
+const fs=require('fs'),{JSDOM}=require('jsdom');
+const html=fs.readFileSync('dustline-v17.html','utf8'); const errs=[];
+const stub=new Proxy({},{get:(t,k)=>{ if(k==='canvas')return{width:8,height:8};
+  if(['createRadialGradient','createLinearGradient','createPattern'].includes(k))return()=>({addColorStop(){}});
+  if(k==='measureText')return()=>({width:10}); return()=>undefined;},set:()=>true});
+const dom=new JSDOM(html,{url:'https://localhost/',runScripts:'dangerously',pretendToBeVisual:true,beforeParse(w){
+  w.HTMLCanvasElement.prototype.getContext=()=>stub;
+  w.CanvasRenderingContext2D=function(){}; w.CanvasRenderingContext2D.prototype={};
+  w.matchMedia=q=>({matches:false,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});
+  require('./audio.js')(w);
+  w.onerror=m=>errs.push('onerror: '+m); w.console.error=(...a)=>errs.push(a.map(String).join(' '));}});
+const w=dom.window,d=w.document,click=n=>n&&n.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+const key=(k)=>{ w.dispatchEvent(new w.KeyboardEvent('keydown',{key:k,bubbles:true})); w.dispatchEvent(new w.KeyboardEvent('keyup',{key:k,bubbles:true})); };
+const step=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{ await step(400);
+  click(d.querySelectorAll('#clsGrid .opt')[0]); await step(50); click(d.getElementById('toMis')); await step(120);
+  const ab=[...d.querySelectorAll('#abGrid .abcard')]; click(ab[0]); await step(30); click(ab[1]); await step(30);
+  click(d.getElementById('abGo')); await step(150);
+  click(d.querySelector('#misGrid .opt:not(.locked)')); await step(50);
+  click(d.getElementById('startBtn')); await step(200);
+  const bg=d.getElementById('briefGo'); if(bg) click(bg); await step(250);
+  if(d.getElementById('tutScreen').classList.contains('on')){ click(d.getElementById('tutGo')); await step(120); }
+  click(d.getElementById('pauseBtn')); await step(250);
+  const scr=d.querySelector('.screen.on');
+  const sl=[...d.querySelectorAll('#pauseVol input[type=range]')];
+  console.log('экран:', scr&&scr.id, '| ползунков:', sl.length, '|', [...d.querySelectorAll('#pauseVol label')].map(l=>l.textContent).join(', '));
+  const mu=d.getElementById('v_volMu'); mu.value='40';
+  mu.dispatchEvent(new w.Event('input',{bubbles:true})); mu.dispatchEvent(new w.Event('change',{bubbles:true}));
+  await step(100);
+  const saved=JSON.parse(w.localStorage.getItem('dustlineOpt')||'{}');
+  console.log('музыка на 40%: подпись «'+d.getElementById('o_volMu').textContent+'», сохранено volMu =', saved.volMu);
+  console.log(errs.length?'ОШИБКИ: '+[...new Set(errs)].slice(0,3).join(' | '):'ошибок нет');
+  process.exit(0); })();

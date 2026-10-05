@@ -1,0 +1,31 @@
+/* какие части картинки тратят больше всего команд рисования */
+const fs=require('fs'),{JSDOM}=require('jsdom');
+let html=fs.readFileSync('dp_test.html','utf8');
+const parts=[];
+for(const p of parts) html=html.replace(`function ${p}(`,`function ${p}(...__a){ const __s=DP.cur; DP.cur='${p}'; try{ return ${p}_(...__a); } finally{ DP.cur=__s; } }\nfunction ${p}_(`);
+html=html.replace('<script>','<script>\nconst DP={cur:"прочее"}; window.DP=DP;');
+const C={}; let frames=0;
+const dom=new JSDOM(html,{url:'https://localhost/',runScripts:'dangerously',pretendToBeVisual:true,beforeParse(w){
+  const stub=new Proxy({},{get:(t,k)=>{ if(k==='canvas')return{width:8,height:8};
+    if(['createRadialGradient','createLinearGradient','createPattern'].includes(k))return()=>({addColorStop(){}});
+    if(k==='measureText')return()=>({width:10});
+    return ()=>{ const c=w.DP?w.DP.cur:'?'; C[c]=(C[c]||0)+1; }; },set:()=>true});
+  w.HTMLCanvasElement.prototype.getContext=()=>stub;
+  w.CanvasRenderingContext2D=function(){}; w.CanvasRenderingContext2D.prototype={};
+  w.matchMedia=q=>({matches:false,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});
+  require('./audio.js')(w); const raf=w.requestAnimationFrame.bind(w); w.requestAnimationFrame=f=>raf(t=>{frames++; f(t);});}});
+const w=dom.window,d=w.document,click=n=>n&&n.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+const step=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{ await step(400);
+  click(d.querySelectorAll('#clsGrid .opt')[+(process.argv[2]||1)]); await step(50); click(d.getElementById('toMis')); await step(120);
+  const ab=[...d.querySelectorAll('#abGrid .abcard')]; click(ab[0]); await step(30); click(ab[1]); await step(30);
+  click(d.getElementById('abGo')); await step(150);
+  click([...d.querySelectorAll('#misGrid .opt')].find(n=>n.dataset.id===(process.argv[3]||'m3'))); await step(50);
+  click(d.getElementById('startBtn')); await step(200); const bg=d.getElementById('briefGo'); if(bg) click(bg); await step(300);
+  const FW=w.__FW,W=FW.W; if(W.tps) for(const tp of W.tps) tp.built=1; if(W.tps&&W.tps[0]){ W.p.x=W.tps[0].x+60; W.p.y=W.tps[0].y; } await step(5000);
+  for(const k in C) delete C[k]; frames=0; await step(3000);
+  const tot=Object.values(C).reduce((a,b)=>a+b,0);
+  console.log('картинок барьеров построено:', w.__FS, '| барьеров на карте:', w.__FW.W.fences.length, '| нитей проверено');
+  console.log(`команд рисования за кадр: ${(tot/frames).toFixed(0)}`);
+  for(const [k,v] of Object.entries(C).sort((a,b)=>b[1]-a[1])) console.log(`  ${k.padEnd(14)} ${(v/frames).toFixed(0).padStart(5)}  (${(100*v/tot).toFixed(0)}%)`);
+  process.exit(0); })();

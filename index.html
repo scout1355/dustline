@@ -1018,14 +1018,14 @@ const S={ shot:()=>tone(430,.05,'triangle',.05,250), mg:()=>{nz(.05,.038,2600);t
 
 /* ============================================================ КЛАССЫ */
 const CLASSES={
- vector:{name:['ВЕКТОР','VECTOR'],role:['Энергетический корпус','Energy chassis'],color:'#5cc8ff',accent:'#bde9ff',
+ vector:{name:['ПРИЗМА','PRISM'],role:['Энергетический корпус','Energy chassis'],color:'#5cc8ff',accent:'#bde9ff',
   tag:['Парящее ядро в кольцах-стабилизаторах. Точность, контроль пространства, мгновенные перемещения.',
        'A hovering core inside stabiliser rings. Precision, space control, instant repositioning.'],
   start:'beam',ab1:'blink',ab2:'singularity',hp:72,shield:46,speed:232,
   abils:['blink','singularity','shield','lance','focus','storm','coil'],
   bullets:[['Луч наращивает урон, пока держит цель','The beam ramps up while it holds a target'],
            ['Хрупкий, но самый вёрткий','Fragile but the most agile']]},
- thunder:{name:['ГРОМ','THUNDER'],role:['Штурмовой корпус','Assault chassis'],color:'#ff7a45',accent:'#ffc9a3',
+ thunder:{name:['ГРАНИТ','GRANITE'],role:['Штурмовой корпус','Assault chassis'],color:'#ff7a45',accent:'#ffc9a3',
   tag:['Тяжёлая бронекапсула на тяге. Плотный кинетический огонь и взрывчатка.',
        'A heavy armoured pod on thrusters. Dense kinetic fire and explosives.'],
   start:'tmg',ab1:'barrage',ab2:'ram',hp:172,speed:146,
@@ -1678,7 +1678,7 @@ mg:{name:['Дробоган','Scattergun'],glyph:'⁙',cls:'thunder',max:5,col:'
       range:260+lv*19,col:'#fff6d8',edge:c,tracer:1,len:.014,w:.7}); }
   fx.muzzle(W.p.x,W.p.y,W.p.ang,c); S.scatter(); }},
 /* основной пулемёт Грома: пробивает насквозь */
-tmg:{name:['Пулемёт Грома','Thunder Machine Gun'],glyph:'⋯',cls:'thunder',max:5,col:'#ff7a45',
+tmg:{name:['Пулемёт Гранита','Granite Machine Gun'],glyph:'⋯',cls:'thunder',max:5,col:'#ff7a45',
  desc:l=>tt(`Урон ${9+l*5}. Пробивает насквозь: каждая следующая цель получает на 40% меньше`+(l>=5?' — на пятом уровне без потерь':'')+`. Зона попадания +${20+l*2}%.`,
             `Damage ${9+l*5}. Pierces: each further target takes 40% less`+(l>=5?' — no falloff at rank 5':'')+`. Hit area +${20+l*2}%.`),
  init:w=>{w.cd=0;w.side=1;}, tick(w,dt,lv){ w.cd-=dt; if(w.cd>0)return; w.cd=(.12-lv*.008)*mRate();
