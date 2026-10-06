@@ -207,7 +207,9 @@
   .card{width:230px;min-height:250px;padding:0 0 20px;border-radius:20px;background:var(--panel);cursor:pointer;text-align:left;
         position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s;
         animation:pop .32s cubic-bezier(.2,.9,.3,1.2) backwards}
-  .card:nth-child(2){animation-delay:.06s} .card:nth-child(3){animation-delay:.12s}
+  .card:nth-child(2){animation-delay:.06s} .card:nth-child(3){animation-delay:.12s} .card:nth-child(4){animation-delay:.18s}
+  .card.med{width:168px;min-height:200px;align-self:center}
+  .card.med .halo{width:168px}
   @keyframes pop{from{opacity:0;transform:translateY(16px) scale(.95)}to{opacity:1;transform:none}}
   .card:hover,.card:focus-visible{transform:translateY(-6px);box-shadow:0 16px 44px rgba(0,0,0,.5);outline:none}
   .card .top{padding:20px 18px 0;position:relative}
@@ -584,6 +586,9 @@ body.touch #bl{display:none}
   .opt ul{font-size:9px;line-height:1.45;padding-left:12px}
   #cards{gap:8px}
   .card{width:164px;min-height:0;padding-bottom:12px;border-radius:14px}
+  .card.med{width:116px;min-height:0}
+  .card.med .kind,.card.med p,.card.med .lvl,.card.med h3{padding:0 10px}
+  .card.med .top{padding:14px 10px 0}
   button{padding:9px 20px;font-size:12px}
   .go{margin-top:15px;gap:8px}
 }
@@ -1556,6 +1561,29 @@ function hurt(e,d,src){ if(e.dead)return;
     if(W.bake&&(e.bkT||0)<W.t){ e.bkT=W.t+.12; const s=e.r*(d>30?.62:.42), x0=e.x+Math.cos(ha)*e.r*.6, y0=e.y+Math.sin(ha)*e.r*.6, cl=e.blood||'#b03030';
       blPaint(x0,y0,s*4,()=>drawSpatter(x0,y0,ha,cl,s,false)); } }
   if(e.hp<=0)e.dead=true; }
+/* снаряд пересёк дугу-щит клинка? Полоса ±12 вокруг дуги и проверка угла */
+function bladeBlocks(b){
+  for(const bw of W.bwalls){ const dx=b.x-bw.x, dy=b.y-bw.y, d=Math.hypot(dx,dy);
+    if(Math.abs(d-bw.R)>12+(b.r||4))continue;
+    let da=Math.atan2(dy,dx)-bw.a0; while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
+    if(bw.sweep>0){ if(da<-.08)da+=TAU; if(da<=bw.sweep+.08)return true; }
+    else { if(da>.08)da-=TAU; if(da>=bw.sweep-.08)return true; } }
+  return false; }
+/* полумесяц удара: острый на концах, толстый посередине; белое ядро у внешней кромки */
+function drawCrescent(x,y,a0,sw,R,th,al,col,hot){
+  if(Math.abs(sw)<.02)return; const N=Math.max(6,Math.ceil(Math.abs(sw)*7));
+  const path=(rOut,tk)=>{ ctx.beginPath();
+    for(let i=0;i<=N;i++){ const k=i/N, a=a0+sw*k; ctx.lineTo(x+Math.cos(a)*rOut,y+Math.sin(a)*rOut); }
+    for(let i=N;i>=0;i--){ const k=i/N, a=a0+sw*k, t2=tk*Math.pow(Math.sin(Math.PI*k),.75);
+      ctx.lineTo(x+Math.cos(a)*(rOut-t2),y+Math.sin(a)*(rOut-t2)); }
+    ctx.closePath(); ctx.fill(); };
+  /* «осветление»: на тёмной земле след светится, а не буреет */
+  ctx.globalCompositeOperation='lighter';
+  ctx.globalAlpha=al*.18; ctx.fillStyle=col; path(R+4,th*1.2);
+  ctx.globalAlpha=al*.75; ctx.fillStyle=hot?'#ffb27a':col; path(R+1,th*.6);
+  ctx.globalCompositeOperation='source-over';
+  ctx.globalAlpha=al; ctx.fillStyle=hot?'#ffffff':'#fff0e0'; path(R,th*.22);
+  ctx.globalAlpha=1; }
 function popup(x,y,t,c){ (W.floats||(W.floats=[])).push({x,y,txt:t,col:c,t:.7}); }
 function aoe(x,y,r,d,col){
   const list=gridNear(x,y,r+40,BUFA);
@@ -1563,6 +1591,10 @@ function aoe(x,y,r,d,col){
     if(!e.dead&&Math.hypot(e.x-x,e.y-y)<r+e.r) hurt(e,d); }
   for(const n of W.nests) if(!n.dead&&Math.hypot(n.x-x,n.y-y)<r+n.r) hurtNest(n,d);
   fx.shock(x,y,r,col||'#ff9a5a'); fx.burst(x,y,col||'#ff9a5a',10,r*2.2); }
+/* поджог огнемёта: урон раз в 0,5 с (тот же урон в секунду), длительность по уровню.
+   Пока враг горит — держится и нагрев; погас — нагрев сброшен */
+function ignite(e,dps,dur){ if(!(e.burnT>0)){ e.burnTk=.5; e.burnDps=dps; } else e.burnDps=Math.max(e.burnDps,dps);
+  e.burnT=Math.max(e.burnT||0,dur); }
 function poison(e,dps,dur,src){ if(!e.pois||e.pois.dps<dps)e.pois={dps,t:dur,src,base:HURT_BASE}; else { e.pois.t=Math.max(e.pois.t,dur); if(src)e.pois.src=src; e.pois.base=HURT_BASE; } }
 const BULLET_CAP=240;
 function proj(o){ const b=Object.assign({r:5,life:2,pierce:0,col:'#fff4d8',edge:null,hit:[]},o);
@@ -1842,7 +1874,7 @@ const PASSIVES={
  power:{name:['Ударное ядро','Strike Core'],glyph:'✦',max:5,col:'#ff7043',desc:l=>tt(`Весь урон +${l*13}%.`,`All damage +${l*13}%.`)},
  rate:{name:['Автоподача','Autoloader'],glyph:'⟳',max:5,col:'#ffc46b',desc:l=>tt(`Скорострельность +${l*10}%.`,`Fire rate +${l*10}%.`)},
  speed:{name:['Ходовая часть','Drive Train'],glyph:'⇢',max:5,col:'#7fd98a',desc:l=>tt(`Скорость корпуса +${l*8}%.`,`Hull speed +${l*8}%.`)},
- hull:{name:['Броневые плиты','Armour Plating'],glyph:'▣',max:5,col:'#8fb8ff',desc:l=>tt(`Прочность +${l*24} и мгновенный ремонт.`,`+${l*24} max integrity and an instant repair.`)},
+ hull:{name:['Броневые плиты','Armour Plating'],glyph:'▣',max:5,col:'#8fb8ff',desc:l=>tt(`Прочность +${l*12}.`,`+${l*12} max integrity.`)},
  magnet:{name:['Магнитный сбор','Magnetic Pickup'],glyph:'◇',max:5,col:'#4db2ff',desc:l=>tt(`Радиус сбора трофеев +${l*30}%.`,`Pickup radius +${l*30}%.`)},
  regen:{name:['Полевой ремонт','Field Repair'],glyph:'✚',max:5,col:'#7fd98a',desc:l=>tt(`Восстановление ${(l*.6).toFixed(1)} единицы в секунду.`,`Repairs ${(l*.6).toFixed(1)} per second.`)},
  armor:{name:['Экранировка','Spaced Armour'],glyph:'◐',max:5,col:'#b8c6dc',desc:l=>tt(`Каждый удар по вам слабее на ${l*2} единицы.`,`Every hit on you is reduced by ${l*2}.`)},
@@ -1853,6 +1885,10 @@ const PASSIVES={
  cool:{name:['Охлаждение','Coolant'],glyph:'❄',max:5,col:'#8ce0f0',desc:l=>tt(`Способности готовятся на ${l*14}% быстрее.`,`Abilities recharge ${l*14}% faster.`)}
 };
 
+/* Сингулярность: на 1-м уровне 10% прежнего урона, на 5-м — как было (405 и 60/с),
+   между ними ровный рост */
+function singDmg(l){ return 22.5+(405-22.5)*(l-1)/4; }
+function singDps(l){ return 2.8+(60-2.8)*(l-1)/4; }
 /* ====================================================== СПОСОБНОСТИ */
 const TURRET_TYPES=[
  {id:'gun',   name:['Автопушка','Autogun'],col:'#ffd94a',rate:.13,dmg:4.2,range:380,glyph:'⁙',
@@ -2027,8 +2063,8 @@ const ABILITIES={
 
  flamer:{name:['Огнемёт','Flamer'],glyph:'❉',passive:1,max:5,col:'#ff7a45',
   info:['Заменяет автоатаку струёй огня.','Replaces your autofire with a jet of flame.'],
-  desc:l=>tt(`${Math.round((26+l*16)*(l>=5?1.35:1))} урона в секунду, дальность ${150+l*42}, поджог.`+(l>=5?' Пятый уровень: +35% урона.':''),
-             `${Math.round((26+l*16)*(l>=5?1.35:1))} damage per second, reach ${150+l*42}, sets targets alight.`+(l>=5?' Rank 5: +35% damage.':'')),
+  desc:l=>tt(`${Math.round((26+l*16)*(l>=5?1.35:1))} урона в секунду, дальность ${150+l*42}, поджог на ${1+l} с. Нагрев: струя по горящему врагу бьёт до +50% сильнее.`+(l>=5?' Пятый уровень: +35% урона.':''),
+             `${Math.round((26+l*16)*(l>=5?1.35:1))} damage per second, reach ${150+l*42}, burns for ${1+l}s. Heat: the jet hits a burning target up to +50% harder.`+(l>=5?' Rank 5: +35% damage.':'')),
   tick(st,dt,l){
     /* огнемёт подчиняется автоатаке (R) и гаснет на время добычи */
     if(W.mining||!(W.auto||W.aimHold)) return;
@@ -2044,7 +2080,11 @@ const ABILITIES={
       const dx=e.x-W.p.x,dy=e.y-W.p.y,d=Math.hypot(dx,dy); if(d>range+e.r)continue;
       let da=Math.atan2(dy,dx)-W.p.ang; da=((da+Math.PI*3)%TAU)-Math.PI;
       const fb=l>=5?1.35:1;      /* на пятом уровне струя злее на треть */
-      if(Math.abs(da)<half+e.r/Math.max(40,d)&&losClear(W.p.x,W.p.y,e.x,e.y,0)){ burn++; hurt(e,(26+l*16)*mDmg()*dt*fb/mRate()/atkK(l),'fire'); poison(e,(5+l*3)*mDmg()*fb,1.6,'fire'); } }
+      if(Math.abs(da)<half+e.r/Math.max(40,d)&&losClear(W.p.x,W.p.y,e.x,e.y,0)){ burn++;
+        /* нагрев: пока струя на враге, раз в 0,3 с +7,5% урона струи, потолок +50% (≈2 с) */
+        e.fhT=(e.fhT||0)+dt; if(e.fhT>=.3){ e.fhT-=.3; e.fheat=Math.min(.5,(e.fheat||0)+.075); }
+        hurt(e,(26+l*16)*mDmg()*dt*fb/mRate()/atkK(l)*(1+(e.fheat||0)),'fire');
+        ignite(e,(5+l*3)*mDmg()*fb,1+l); } }
     /* гнёзда тоже горят — раньше огнемёт бил только по живым */
     for(const nn of W.nests){ if(nn.dead)continue;
       const dx=nn.x-W.p.x,dy=nn.y-W.p.y,d=Math.hypot(dx,dy); if(d>range+nn.r)continue;
@@ -2054,7 +2094,7 @@ const ABILITIES={
     fireHum(burn>0); }},
 
  blade:{name:['Силовой клинок','Power Blade'],glyph:'⟋',cd:5,max:5,col:'#ff7a45',
-  info:['Резкий взмах перед собой, на пределе — вокруг себя. На пятом уровне оставляет горящий след.','A hard swing in front; at full rank, all around you, leaving a burning arc.'],
+  info:['Резкий взмах перед собой, на пределе — вокруг себя. Оставляет перед собой на 3 с короткую дугу, гасящую вражеские снаряды. На пятом уровне — ещё и горящий след.','A hard swing in front; at full rank, all around you. Leaves a 3s arc that stops enemy projectiles; at full rank it also burns.'],
   desc:l=>tt(`Урон ${70+l*40}, сектор ${Math.round((.9+(l-1)*1.35)/TAU*360)}°, длина ${70+l*9}, откат ${(5-l*.4).toFixed(1)} с.`,
              `${70+l*40} damage, ${Math.round((.9+(l-1)*1.35)/TAU*360)}° arc, reach ${70+l*9}, ${(5-l*.4).toFixed(1)}s cooldown.`),
   use(l){
@@ -2063,7 +2103,7 @@ const ABILITIES={
        Направление чередуется, чтобы взмахи не выглядели одинаково. */
     const side=(this._s=-(this._s||1));
     W.zones.push({type:'slash',x:W.p.x,y:W.p.y,reach,dmg,hit:[],lv:l,
-      a0:W.p.ang-side*arc/2, sweep:side*arc, t:0, dur:.26, col:'#ff9a5a'});
+      a0:W.p.ang-side*arc/2, sweep:side*arc, t:0, dur:.07, col:'#ff9a5a'});
     S.lash(); shake(5); hitstop(.03); return true; }},
 
  slick:{name:['Слизевой след','Slime Trail'],glyph:'≈',passive:1,max:5,col:'#c86bff',
@@ -2146,12 +2186,12 @@ const ABILITIES={
        e.x=clamp(e.x+dx/dd*f2,e.r,W.size-e.r); e.y=clamp(e.y+dy/dd*f2,e.r,W.size-e.r);
        e.slow=Math.max(e.slow||0,.35); } }
    fx.ring(W.p.x,W.p.y,95,'#5cc8ff'); S.blink(); shake(8); return true; }},
- singularity:{max:5,col:'#5cc8ff',info:['Колодец, стягивающий и сминающий всё вокруг точки.','A well that drags everything in and crushes it.'],desc:l=>tt(`Радиус ${200+l*20}, урон ${180+l*45}, стягивает ${3+l*.3} с.`,`Radius ${200+l*20}, ${180+l*45} damage, pulls for ${3+l*.3}s.`),name:['Сингулярность','Singularity'],glyph:'◉',cd:22,use(l){
+ singularity:{max:5,col:'#5cc8ff',info:['Колодец, стягивающий и сминающий всё вокруг точки.','A well that drags everything in and crushes it.'],desc:l=>tt(`Радиус ${Math.round((200+l*20)*.8)}, урон ${Math.round(singDmg(l))}, стягивает ${3+l*.3} с.`,`Radius ${Math.round((200+l*20)*.8)}, ${Math.round(singDmg(l))} damage, pulls for ${3+l*.3}s.`),name:['Сингулярность','Singularity'],glyph:'◉',cd:22,use(l){
    const a=Math.atan2(INPUT.ay-W.p.y,INPUT.ax-W.p.x), d=Math.min(300,Math.hypot(INPUT.ax-W.p.x,INPUT.ay-W.p.y));
    const x=W.p.x+Math.cos(a)*d,y=W.p.y+Math.sin(a)*d;
-   const R=(200+l*20)*mArea(), t=3+l*.3;
-   W.zones.push({type:'well',x,y,r:R,t,dps:(20+l*8)*mDmg(),pull:300+l*30,col:'#5cc8ff',big:1});
-   W.zones.push({type:'mark',x,y,r:R,t,dmg:(180+l*45)*mDmg(),col:'#5cc8ff',beam:1});
+   const R=(200+l*20)*.8*mArea(), t=3+l*.3;
+   W.zones.push({type:'well',x,y,r:R,t,dps:singDps(l)*mDmg(),pull:300+l*30,col:'#5cc8ff',big:1});
+   W.zones.push({type:'mark',x,y,r:R,t,dmg:singDmg(l)*mDmg(),col:'#5cc8ff',beam:1});
    S.blink(); shake(10); return true; }},
  barrage:{max:5,col:'#ff7a45',info:['Залп по площади вокруг курсора.','A barrage around the cursor.'],desc:l=>tt(`Разрывы по ${40+l*16} урона, разлёт ${60+l*26}.`+(l>=5?' Пятый уровень: каждый разрыв снимает ещё 20% запаса цели.':''),`Bursts of ${40+l*16} damage, spread ${60+l*26}.`+(l>=5?' Rank 5: each burst also takes 20% of the target health.':'')),name:['Артобстрел «Гроза»','Thunder Barrage'],glyph:'✹',cd:14,use(){
    const k=1+W.pas.power*.2+W.p.level*.04;
@@ -2242,7 +2282,10 @@ const ETYPES={
  /* --- поздние тяжёлые: медленные, но больно бьют --- */
  armored:{hp:130,sp:28,r:25,dmg:21,xp:8,form:'armored',col:'#6a90c0',dark:'#33465f',eye:'#a8d8ff',armor:9,blood:'#4aa8ff'},
  juggernaut:{hp:270,sp:19,r:35,dmg:36,xp:13,form:'jug',col:'#ad5540',dark:'#5c2a20',eye:'#ff8060',armor:6,blood:'#b03030'},
- siege:{hp:160,sp:16,r:29,dmg:16,xp:11,form:'siege',col:'#9080c0',dark:'#463c63',eye:'#d8c0ff',armor:4,mortar:1,range:520,blood:'#7fbf3f'}
+ siege:{hp:160,sp:16,r:29,dmg:16,xp:11,form:'siege',col:'#9080c0',dark:'#463c63',eye:'#d8c0ff',armor:4,mortar:1,range:520,blood:'#7fbf3f'},
+ /* --- отряд с разрядной стеной: звенья ходят кольцом вокруг узла --- */
+ link:{hp:58,sp:44,r:16,dmg:12,xp:3,form:'link',col:'#7d72c8',dark:'#352d63',eye:'#e2d6ff',blood:'#4aa8ff'},
+ node:{hp:540,sp:44,r:30,dmg:20,xp:16,form:'node',col:'#6c5fb4',dark:'#2c2456',eye:'#f0e6ff',armor:3,blood:'#4aa8ff'}
 };
 /* --- элиты: медленные, опасные, с первой убитой падает трофей --- */
 const ELITES={
@@ -2284,6 +2327,52 @@ function spawnE(type,x,y,mul,force){
 /* ступень позднего боя: 0 до десятой минуты, дальше +1 каждые 90 секунд */
 function lateTier(){ return W.t<600 ? 0 : Math.min(8, 1+Math.floor((W.t-600)/90)); }
 
+/* Отряд: узел в центре и шесть звеньев по кругу. Между соседними звеньями —
+   разрядная стена: бьёт током и не пускает героя. Убит узел — стена гаснет,
+   звенья становятся обычными врагами. Убито звено — в стене появляется проём. */
+function spawnSquad(){
+  const n=6, R=108, a=rr(0,TAU), d=Math.max(VW,VH)*.62+R+120;
+  const cx=clamp(W.p.x+Math.cos(a)*d,R+60,W.size-R-60), cy=clamp(W.p.y+Math.sin(a)*d,R+60,W.size-R-60);
+  const n0=W.enemies.length; spawnE('node',cx,cy,1,true);
+  const c=W.enemies[W.enemies.length-1]; if(W.enemies.length===n0||c.type!=='node')return null;
+  const sq={c,m:[],n,R,rot:rr(0,TAU),spin:(rng()<.5?-1:1)*.42,segs:[],live:n};
+  c.sq=sq; c.pers='rush'; c.mode='direct';
+  for(let i=0;i<n;i++){ const aa=sq.rot+i*TAU/n;
+    spawnE('link',cx+Math.cos(aa)*R,cy+Math.sin(aa)*R,1,true);
+    const m=W.enemies[W.enemies.length-1]; m.sq=sq; m.slot=i; m.lurch=0; sq.m.push(m); }
+  W.squads.push(sq);
+  toast(tt('ОТРЯД С РАЗРЯДНОЙ СТЕНОЙ — БЕЙТЕ ЦЕНТР','ARC-FENCE SQUAD — HIT THE CORE')); S.lzap();
+  return sq; }
+/* звено держит своё место на вращающемся кольце */
+function squadStep(e,dt,slow){ const sq=e.sq, c=sq.c;
+  const a=sq.rot+e.slot*TAU/sq.n, sx=c.x+Math.cos(a)*sq.R, sy=c.y+Math.sin(a)*sq.R;
+  const dx=sx-e.x, dy=sy-e.y, dd=Math.hypot(dx,dy)||1;
+  const v=Math.min(e.sp*2.4*slow, dd*5);
+  const st=Math.min(1,10*dt);
+  e.vx=lerp(e.vx||0,dx/dd*v,st); e.vy=lerp(e.vy||0,dy/dd*v,st);
+  e.x+=e.vx*dt; e.y+=e.vy*dt; e.walk+=Math.hypot(e.vx,e.vy)*dt*.06+dt*.5;
+  e.dir=Math.atan2(W.p.y-e.y,W.p.x-e.x); }
+function squadsUpdate(dt){ const L=W.squads; if(!L.length)return; const p=W.p;
+  for(let i=L.length-1;i>=0;i--){ const sq=L[i];
+    sq.rot+=sq.spin*dt;
+    sq.live=0; for(const m of sq.m) if(!m.dead) sq.live++;
+    if(sq.c.dead||!sq.live){
+      if(sq.c.dead&&sq.live){ for(const m of sq.m) if(!m.dead) fx.burst(m.x,m.y,'#c9b8ff',6,120);
+        toast(tt('РАЗРЯД ПОГАС','ARC FENCE DOWN')); S.thud(); }
+      for(const m of sq.m) m.sq=null; sq.c.sq=null; sq.segs.length=0;
+      L.splice(i,1); continue; }
+    sq.segs.length=0;
+    for(let k=0;k<sq.n;k++){ const a=sq.m[k], b=sq.m[(k+1)%sq.n];
+      if(a.dead||b.dead)continue;
+      if(Math.hypot(a.x-b.x,a.y-b.y)>sq.R*1.7)continue;   /* звено отстало — стены нет */
+      sq.segs.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,r:9}); }
+    if(p.ram)continue;                     /* таран проходит насквозь, как через заборы */
+    /* изнутри кольца выйти можно (с ударом током), снаружи — не войти */
+    const inside=Math.hypot(p.x-sq.c.x,p.y-sq.c.y)<sq.R*.84;
+    for(const sg of sq.segs){ const q=segDist(p.x,p.y,sg), m=sg.r+p.r;
+      if(q.d>=m)continue;
+      if(!inside&&q.d>.01){ p.x=clamp(q.cx+(p.x-q.cx)/q.d*m,32,W.size-32); p.y=clamp(q.cy+(p.y-q.cy)/q.d*m,32,W.size-32); }
+      if(p.ifr<=0){ hurtPlayer(8*(1+W.t/320)); fx.spark(q.cx,q.cy,Math.atan2(p.y-q.cy,p.x-q.cx)+Math.PI,'#d8c8ff',6); S.lzap(); } } } }
 function spawnElite(trophy){
   const M=MISSIONS.find(m=>m.id===W.mid);
   const idx=Math.min(ELITE_ORDER.length-1, W.eliteN + (M.endless?ri(0,1):0));
@@ -2407,7 +2496,14 @@ const AB_ICONS={
 function abIcon(d){ return (d&&d.icon&&AB_ICONS[d.icon])||((d&&d.glyph)||''); }
 
 const WEAK_T={crawler:1,sprinter:1,stalker:1,weblet:1,wyrmling:1};
+/* слабые (ползуны, бегуны, охотники) уходят после 2,5 минуты боя —
+   везде, кроме двух первых вводных, где сильных нет вовсе */
+function weakGone(){ return !!W.weakOff || (W.mid!=='i1'&&W.mid!=='i2'&&W.t>=150); }
 function poolFor(){
+  const r0=poolFor0();
+  if(!W.weakOff&&weakGone()){ const f=r0.filter(t=>!WEAK_T[t]); return f.length?f:['hulk','bloater','spitter']; }
+  return r0; }
+function poolFor0(){
   /* после «Они учуяли вас!» слабые (ползуны, тараканы и мелочь) больше не появляются */
   if(W.weakOff){ const M0=MISSIONS.find(m=>m.id===W.mid), base=((M0&&(M0.mix||M0.pool))||poolByTime()).filter(t=>!WEAK_T[t]);
     return base.length?base:['hulk','bloater','spitter']; }
@@ -2552,6 +2648,11 @@ function waves(dt){
   /* «Выживание»: с 10-й минуты слабых всё меньше, к 15-й — почти одни боссы */
   if(W.mid==='endless'){ const m=W.t/60; earlyK*= m<10?1:(m<15?1-(m-10)/5*.6:Math.max(.1,.4-(m-15)*.1)); }
   earlyK*=1+(W.nestK||0);   /* «Расчистка»: каждое выжженное гнездо — плюс половина потока */
+  if(weakGone()) earlyK*=.8;   /* мелочи больше нет — врагов чуть меньше, но каждый крепче */
+  /* отряд с разрядной стеной: в основных миссиях и «Выживании», не больше двух сразу */
+  if(W.mid!=='i1'&&W.mid!=='i2'&&W.mid!=='i3'){
+    if(W.sqNext===undefined) W.sqNext=95;
+    if(W.t>=W.sqNext){ W.sqNext=W.t+rr(80,110); if(W.squads.length<2) spawnSquad(); } }
   W.spawnAcc+=dt*Math.min(W.surge?10:7,raw)*lullK*(W.baseWave||1)*earlyK;
   /* запас появления не копится сверх трёх: иначе после массового убийства
      накопленное высыпалось толпой за один кадр */
@@ -2596,8 +2697,9 @@ const fx={
  slime(x,y,c,n){ for(let i=0;i<n;i++){ const a=vr(0,TAU),sp=vr(20,110);
    FXS.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:0,life:vr(.35,.8),col:c,r:vr(2,5)}); }
   FXR.push({x,y,r:4,max:26,t:0,life:.3,col:c}); },
- shock(x,y,r,c){ FXR.push({x,y,r:r*.12,max:r*1.25,t:0,life:.5,col:c,thick:1});
-   FXR.push({x,y,r:r*.3,max:r*.75,t:-.06,life:.34,col:'#ffffff'}); },
+ /* взрывная волна: вдвое короче и с резким стартом, кадры — по 30 в секунду */
+ shock(x,y,r,c){ FXR.push({x,y,r:r*.12,max:r*1.25,t:0,life:.26,col:c,thick:1,lf:1});
+   FXR.push({x,y,r:r*.3,max:r*.75,t:-.03,life:.17,col:'#ffffff',lf:1}); },
  flame(x,y,vx,vy,life){ FXF.push({x,y,vx,vy,t:0,life:life||vr(.26,.52),r:vr(6,14)}); },
  smoke(x,y){ FXP.push({x,y,vx:vr(-14,14),vy:vr(-14,14),t:0,life:vr(.4,.9),col:'#6a6f78',r:vr(3,6)}); },
  muzzle(x,y,a,c){ FXM.push({x,y,a,t:0,life:.07,col:c}); },
@@ -3007,6 +3109,9 @@ function update(dt){
       const off=e.x<W.viewL||e.x>W.viewR||e.y<W.viewU||e.y>W.viewD;
       e.offT=off?(e.offT||0)+dt:0; }
     if(e.flash>0)e.flash-=dt; if(e.hitCd>0)e.hitCd-=dt; if(e.wallCd>0)e.wallCd-=dt;
+    if(e.burnT>0){ e.burnT-=dt; e.burnTk-=dt;
+      if(e.burnTk<=0){ e.burnTk+=.5; hurt(e,e.burnDps*.5,'fire'); }
+      if(e.burnT<=0){ e.fheat=0; e.fhT=0; } }
     if(e.pois){ e.pois.t-=dt; HURT_BASE=!!e.pois.base; hurt(e,e.pois.dps*dt,e.pois.src); HURT_BASE=false; if(e.pois&&e.pois.t<=0)e.pois=null; }
     if(e.slime>0)e.slime-=dt;
     let tx=p.x,ty=p.y,tgt=null,tgtR=p.r,isBeacon=false,bldTgt=null;
@@ -3032,7 +3137,8 @@ function update(dt){
     const slow=(1-(e.slow||0))*(e.rage>0?1.35:1); e.slow=0;
     const rgd=ETYPES[e.type]&&ETYPES[e.type].range;
     e.dir=Math.atan2(dy,dx);
-    if(rgd&&d<rgd&&!tgt){
+    if(e.sq&&e.sq.c!==e){ squadStep(e,dt,slow); }
+    else if(rgd&&d<rgd&&!tgt){
       /* стрелки не замирают: подшагивают и держат дистанцию */
       const ideal=rgd*.72, ang1=Math.atan2(dy,dx);
       const rad=clamp((d-ideal)/120,-1,1);
@@ -3143,6 +3249,7 @@ function update(dt){
       else { e.ai-=dt;
         if(e.ai<=0){ e.mode=rng()<.2?'wait':'direct'; e.ai=e.mode==='wait'?rr(.3,.7):rr(1.4,3.2); }
         if(e.mode==='wait'&&d>280)sp2*=.15; }
+      if(e.sq&&e.sq.c===e){ want=e.sq.R+10; tang=.22; sp2=e.sp; e.dashT=0; spreadK=0; }
       /* рывок разгоняется и гаснет плавно, без телепортов */
       if(e.dashT>0){ const k=1-e.dashT/e.dashDur;
         want=0; tang*=.25; sp2*=1+Math.sin(k*Math.PI)*1.5; }
@@ -3254,6 +3361,7 @@ function update(dt){
     e.x=clamp(e.x,e.r,W.size-e.r); e.y=clamp(e.y,e.r,W.size-e.r);
   }
 
+  squadsUpdate(dt);
   /* союзники */
   for(let i=W.allies.length-1;i>=0;i--){ const a=W.allies[i]; a.life-=dt; a.hitCd-=dt;
     const e=nearest(a.x,a.y,430);
@@ -3324,12 +3432,15 @@ function update(dt){
       W.bullets.splice(i,1); } }
 
   HURT_BASE=false; HIT_ANG=null;
+  /* дуги-щиты клинка */
+  for(let i=W.bwalls.length-1;i>=0;i--){ const bw=W.bwalls[i]; bw.t+=dt; if(bw.t>=bw.dur)W.bwalls.splice(i,1); }
   /* вражеские снаряды */
   for(let i=W.ebullets.length-1;i>=0;i--){ const b=W.ebullets[i];
     if(b.ox===undefined){ b.ox=b.x; b.oy=b.y; }
     b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
     if(Math.hypot(b.x-b.ox,b.y-b.oy)>(b.range||540)){ W.ebullets.splice(i,1); continue; }
     if(p.dome&&Math.hypot(p.x-b.x,p.y-b.y)<p.dome.r){ fx.burst(b.x,b.y,'#ffd94a',5,90); W.ebullets.splice(i,1); continue; }
+    if(W.bwalls.length&&bladeBlocks(b)){ fx.spark(b.x,b.y,Math.atan2(b.vy,b.vx),'#ffc08a',5); S.wall(); W.ebullets.splice(i,1); continue; }
     if(p.shield&&!b.web){ const ds=Math.hypot(p.x-b.x,p.y-b.y);
       if(ds<p.shield.r+10&&ds>p.shield.r-34){
         let da=Math.atan2(b.y-p.y,b.x-p.x)-p.ang; da=((da+Math.PI*3)%TAU)-Math.PI;
@@ -3804,13 +3915,15 @@ function update(dt){
       for(let k=0;k<lz.length;k++){ const e=lz[k];
         if(e.dead||z.hit.indexOf(e)>=0)continue;
         const dx=e.x-z.x, dy=e.y-z.y;
-        if(Math.hypot(dx,dy)>z.reach+e.r)continue;
+        const dd0=Math.hypot(dx,dy); if(dd0>z.reach+e.r)continue;
         let da=Math.atan2(dy,dx)-a0;
         while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
-        const passed = z.sweep>0 ? (da>=-.22 && da<=(a1-a0)+.22) : (da<=.22 && da>=(a1-a0)-.22);
+        /* кто вплотную к корпусу (жук на герое) — получает удар сразу, от центра */
+        const passed = dd0<W.p.r+e.r+6 || (z.sweep>0 ? (da>=-.22 && da<=(a1-a0)+.22) : (da<=.22 && da>=(a1-a0)-.22));
         if(!passed)continue;
+        const aa=Math.atan2(dy,dx);
         HIT_ANG=aa; hurt(e,z.dmg); HIT_ANG=null; z.hit.push(e);
-        const aa=Math.atan2(dy,dx); e.x+=Math.cos(aa)*16; e.y+=Math.sin(aa)*16;
+        e.x+=Math.cos(aa)*16; e.y+=Math.sin(aa)*16;
         /* брызги — в уроне, по направлению взмаха */ }
       /* гнёзда тоже рубятся — каждое один раз за взмах */
       for(const nn of W.nests){ if(nn.dead||z.hit.indexOf(nn)>=0)continue;
@@ -3819,11 +3932,19 @@ function update(dt){
         const passed = z.sweep>0 ? (da>=-.22 && da<=(a1-a0)+.22) : (da<=.22 && da>=(a1-a0)-.22);
         if(passed){ hurtNest(nn,z.dmg); z.hit.push(nn); } }
       if(z.t>=z.dur){
+        /* остаточный след взмаха: полумесяц висит в воздухе и гаснет за 4 кадра */
+        W.zones.push({type:'slashFx',x:z.x,y:z.y,reach:z.reach,a0:z.a0,sweep:z.sweep,t:0,dur:.27,col:z.col});
+        /* след-щит: дуга 45° прямо перед собой, 3 с гасит вражеские снаряды.
+           На 5-м уровне не растёт — радиус как у 4-го */
+        { const sg=Math.sign(z.sweep)||1, mid=z.a0+z.sweep/2, AW=Math.PI/4;
+          const R4=(70+4*9)*mArea()*.78;
+          W.bwalls.push({x:z.x,y:z.y,R:Math.min(z.reach*.78,R4),a0:mid-sg*AW/2,sweep:sg*AW,t:0,dur:3}); }
         /* на пятом уровне после взмаха остаётся горящий след */
         if(z.lv>=5) W.zones.push({type:'emberArc',x:z.x,y:z.y,reach:z.reach,
           a0:z.a0,sweep:z.sweep,t:0,dur:5,dps:(6+z.lv*3)*mDmg(),tick:0,col:'#ff7a45'});
         W.zones.splice(i,1); }
     }
+    else if(z.type==='slashFx'){ z.t+=dt; if(z.t>=z.dur)W.zones.splice(i,1); }
     else if(z.type==='emberArc'){
       z.t+=dt; z.tick-=dt;
       if(z.tick<=0){ z.tick=.35;
@@ -3894,13 +4015,13 @@ function update(dt){
     const FAR = 1500, CAP = QUAL ? 120 : 190;
     let far = [];
     for(let i=0;i<W.enemies.length;i++){ const e=W.enemies[i];
-      if(e.dead||e.boss||e.elite||e.carry||e.type==='hauler') continue;
+      if(e.dead||e.boss||e.elite||e.carry||e.type==='hauler'||(e.sq&&e.sq.c!==e)) continue;
       const dx=e.x-W.p.x, dy=e.y-W.p.y;
       if(dx*dx+dy*dy > FAR*FAR) far.push(i); }
     const over = Math.max(0, W.enemies.length - CAP);
     /* кто застрял за экраном дольше 40 секунд — туда же, в возврат */
     for(let i=0;i<W.enemies.length;i++){ const e=W.enemies[i];
-      if(e.dead||e.boss||e.elite||e.carry||e.type==='hauler') continue;
+      if(e.dead||e.boss||e.elite||e.carry||e.type==='hauler'||(e.sq&&e.sq.c!==e)) continue;
       if((e.offT||0)>40 && far.indexOf(i)<0){ far.push(i); e.offT=0; } }
     for(let k=0;k<far.length;k++){
       const e = W.enemies[far[k]];
@@ -4091,7 +4212,7 @@ let pendingLevels=0,pendingRelic=0,currentChoices=[];
 const WORLD_LISTS=['enemies','allies','bullets','ebullets','shards','pools','builds','orbs','zones',
  'obstacles','fences','beams','mines','nests','crates','props','spiders','relicDrops','bots','pods',
  'walls','baseTurrets','meds','cores','tps','rcrates','relics','goals','chains',
- 'coils','incs','groves','swings'];
+ 'coils','incs','groves','swings','bwalls','squads'];
 function ensureFields(w){
   for(const k of WORLD_LISTS) if(!Array.isArray(w[k]))w[k]=[];
   if(typeof w.carry!=='number')w.carry=0;
@@ -4256,10 +4377,16 @@ function buildPool(){ const pool=[]; const free=slotsUsed()<slotMax();
   for(const id in PASSIVES) if(W.pas[id]<PASSIVES[id].max&&(free||W.pas[id]>0))
     pool.push({kind:['Модуль','Module'],id,w:false,isNew:W.pas[id]===0,lv:W.pas[id]+1,def:PASSIVES[id],rar:0});
   return pool; }
+const MED_CARD={med:true,kind:['Ремкомплект','Repair kit'],lv:0,
+  def:{name:['Аптечка','Medkit'],col:'#7fd98a',glyph:'✚',max:0,
+       desc:()=>tt('Лечит 40% прочности.','Restores 40% integrity.')}};
 function drawCards(){ const pool=buildPool(),out=[];
   for(let i=0;i<3&&pool.length;i++) out.push(pool.splice(ri(0,pool.length-1),1)[0]);
   if(!out.length){ /* выбрать нечего — окно закрывается без награды */
     pendingLevels=0; return false; }
+  /* четвёртая, меньшая карточка — аптечка, всегда справа. Появляется только вместе
+     с настоящими улучшениями: когда всё прокачано, окно по-прежнему не открывается */
+  if(!(W.medCd>0)) out.push(MED_CARD);
   currentChoices=out;
   el('lvlNum').textContent=W.p.level; el('rerollN').textContent=W.p.rerolls;
   { const lt=el('lvlTitle');
@@ -4279,12 +4406,12 @@ function drawCards(){ const pool=buildPool(),out=[];
   el('cards').innerHTML=out.map((c,i)=>{
     const col=c.def.col||CLASSES[W.cls].color;
     let dots=''; for(let k=1;k<=c.def.max;k++) dots+=`<i class="${k<=c.lv?'f':''}"></i>`;
-    return `<div class="card" tabindex="0" data-i="${i}" style="color:${col}">
+    return `<div class="card${c.med?' med':''}" tabindex="0" data-i="${i}" style="color:${col}">
       <div class="rar"></div><div class="top"><div class="halo"></div>
       <div class="em" style="color:${col}">${abIcon(c.def)}</div></div>
       <div class="dots">${dots}</div>
       <div class="kind">${L(c.kind)}</div><h3>${L(c.def.name)}</h3>
-      <div class="lvl" style="color:${col}">${c.isNew?tt('Новое','New'):tt('Уровень ','Level ')+c.lv}</div>
+      <div class="lvl" style="color:${col}">${c.med?'+40%':(c.isNew?tt('Новое','New'):tt('Уровень ','Level ')+c.lv)}</div>
       <p>${c.def.desc(c.lv)}</p></div>`; }).join('');
   el('cards').querySelectorAll('.card').forEach(n=>{
     const go=()=>{ if(el('cards').classList.contains('wait'))return;
@@ -4300,9 +4427,14 @@ function openLevelUp(){ S.lvl(); el('lvlScreen').classList.add('on'); markScroll
   if(!drawCards()){ el('lvlScreen').classList.remove('on'); paused=false; } }
 function applyChoice(c){
   setTimeout(()=>{ try{ checkSynth(); }catch(e){} },0);
-  if(c.ab){ W[c.id].lv++; }
+  if(c.med){ /* аптечка: лечит 40%, следующая — только через 3 улучшения */
+    const p=W.p, h=Math.min(p.hpMax-p.hp,p.hpMax*.4); p.hp+=h; W.medCd=3;
+    fx.note(p.x,p.y-p.r-16,'+'+Math.round(h),'#7fd98a'); fx.ring(p.x,p.y,70,'#7fd98a'); }
+  else if(W.medCd>0) W.medCd--;
+  if(c.med){}
+  else if(c.ab){ W[c.id].lv++; }
   else if(c.w){ if(!W.weapons[c.id]){ const w={lv:1}; WEAPONS[c.id].init(w); W.weapons[c.id]=w; } else W.weapons[c.id].lv++; }
-  else { W.pas[c.id]++; if(c.id==='hull'){ W.p.hpMax+=24; W.p.hp+=24; } }
+  else { W.pas[c.id]++; if(c.id==='hull'){ W.p.hpMax+=12; } }   /* только запас, без ремонта */
   pendingLevels--; el('lvlScreen').classList.remove('on');
   renderLoadout(); syncHud(); S.ready();
   if(pendingLevels>0)setTimeout(openLevelUp,140); else { paused=false; clearMouse(); } }
@@ -4524,24 +4656,19 @@ function render(){
       for(let i=0;i<3;i++){ const k=(T*.7+i/3)%1; ctx.globalAlpha=(1-k)*.6; circle(z.x,z.y,z.r*k); ctx.stroke(); }
       ctx.globalAlpha=1; }
     else if(z.type==='slash'){
-      const pr=Math.min(1,z.t/z.dur), a1=z.a0+z.sweep*pr;
-      ctx.save(); ctx.translate(z.x,z.y);
-      /* шлейф: дуга от начала взмаха до текущего положения клинка */
-      const steps=10;
-      for(let s2=0;s2<steps;s2++){
-        const k1=pr*(s2/steps), k2=pr*((s2+1)/steps);
-        ctx.globalAlpha=(s2/steps)*(1-pr*.35)*.5;
-        ctx.strokeStyle=z.col; ctx.lineWidth=3+8*(s2/steps);
-        ctx.beginPath(); ctx.arc(0,0,z.reach*.78,z.a0+z.sweep*k1,z.a0+z.sweep*k2,z.sweep<0); ctx.stroke(); }
-      /* сам клинок: сужающееся лезвие от корпуса наружу */
-      ctx.rotate(a1); ctx.globalAlpha=.95;
-      ctx.fillStyle=z.col;
-      ctx.beginPath(); ctx.moveTo(10,-4.5); ctx.lineTo(z.reach,-1.6);
-      ctx.lineTo(z.reach+7,0); ctx.lineTo(z.reach,1.6); ctx.lineTo(10,4.5); ctx.closePath(); ctx.fill();
-      ctx.globalAlpha=.9; ctx.fillStyle='#ffffff';
-      ctx.beginPath(); ctx.moveTo(12,-1.6); ctx.lineTo(z.reach-4,-.7);
-      ctx.lineTo(z.reach-4,.7); ctx.lineTo(12,1.6); ctx.closePath(); ctx.fill();
+      /* взмах — 4 рубленых кадра: полумесяц растёт рывками, на острие — лезвие */
+      const pr=Math.min(1,Math.ceil(Math.max(.01,z.t/z.dur)*4)/4), a1=z.a0+z.sweep*pr;
+      drawCrescent(z.x,z.y,z.a0,z.sweep*pr,z.reach,z.reach*.34,1,z.col,1);
+      ctx.save(); ctx.translate(z.x,z.y); ctx.rotate(a1); ctx.globalAlpha=1;
+      ctx.fillStyle='#ffffff';
+      ctx.beginPath(); ctx.moveTo(10,-3); ctx.lineTo(z.reach+4,-1); ctx.lineTo(z.reach+12,0);
+      ctx.lineTo(z.reach+4,1); ctx.lineTo(10,3); ctx.closePath(); ctx.fill();
       ctx.restore(); ctx.globalAlpha=1;
+    }
+    else if(z.type==='slashFx'){
+      /* след висит и тает ступенями по 15 кадров в секунду, чуть отходя наружу */
+      const f=Math.min(3,Math.floor(z.t*15)), k=1-f/4;
+      drawCrescent(z.x,z.y,z.a0,z.sweep,z.reach+f*3,z.reach*.34*(.5+.5*k),k,z.col,f===0?1:0);
     }
     else if(z.type==='emberArc'){
       const k=1-z.t/z.dur;
@@ -4554,6 +4681,17 @@ function render(){
     }
     else if(z.type==='nova'){ ctx.strokeStyle=z.col; ctx.globalAlpha=clamp(1-z.r/z.max,0,1)*.85;
       ctx.lineWidth=7; circle(z.x,z.y,z.r); ctx.stroke(); ctx.globalAlpha=1; } }
+  /* дуги-щиты клинка: гаснут в последние полсекунды */
+  for(const bw of W.bwalls){ if(!vis(bw.x,bw.y,bw.R+30))continue;
+    const k=Math.min(1,(bw.dur-bw.t)/.5, bw.t/.08), fl=.8+.2*Math.sin(T*18+bw.x);
+    ctx.lineCap='round';
+    ctx.globalAlpha=.22*k; ctx.strokeStyle='#ff9a5a'; ctx.lineWidth=16;
+    ctx.beginPath(); ctx.arc(bw.x,bw.y,bw.R,bw.a0,bw.a0+bw.sweep,bw.sweep<0); ctx.stroke();
+    ctx.globalAlpha=.75*k*fl; ctx.strokeStyle='#ffc690'; ctx.lineWidth=3.2;
+    ctx.beginPath(); ctx.arc(bw.x,bw.y,bw.R,bw.a0,bw.a0+bw.sweep,bw.sweep<0); ctx.stroke();
+    ctx.globalAlpha=.9*k; ctx.strokeStyle='#fff3e0'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.arc(bw.x,bw.y,bw.R-2,bw.a0,bw.a0+bw.sweep,bw.sweep<0); ctx.stroke();
+    ctx.globalAlpha=1; ctx.lineCap='butt'; }
 
   /* энергетический забор между разрядниками */
   for(const ch of W.chains){
@@ -4569,6 +4707,28 @@ function render(){
     ctx.lineTo(ch.x2,ch.y2); ctx.stroke();
     ctx.lineCap='butt';
   }
+
+  /* разрядная стена вражеского отряда: фиолетовая, чтобы не путать с забором Зодчего.
+     Излом молнии меняется 15 раз в секунду */
+  if(W.squads.length){ const fr=Math.floor(T*15); ctx.lineCap='round';
+    for(const sq of W.squads){
+      /* тонкие нити от узла к звеньям — видно, кто держит стену */
+      ctx.strokeStyle='rgba(185,160,255,.20)'; ctx.lineWidth=1.5; ctx.beginPath();
+      for(const m of sq.m) if(!m.dead){ ctx.moveTo(sq.c.x,sq.c.y); ctx.lineTo(m.x,m.y); }
+      ctx.stroke();
+      for(let si=0;si<sq.segs.length;si++){ const sg=sq.segs[si];
+        if(!vis((sg.x1+sg.x2)/2,(sg.y1+sg.y2)/2,sq.R+40))continue;
+        ctx.strokeStyle='rgba(160,120,255,.18)'; ctx.lineWidth=20;
+        ctx.beginPath(); ctx.moveTo(sg.x1,sg.y1); ctx.lineTo(sg.x2,sg.y2); ctx.stroke();
+        ctx.strokeStyle='rgba(176,140,255,.55)'; ctx.lineWidth=5;
+        ctx.beginPath(); ctx.moveTo(sg.x1,sg.y1); ctx.lineTo(sg.x2,sg.y2); ctx.stroke();
+        for(const [wd,cl,amp,sd] of [[2,'#f3ecff',5,0],[1.2,'rgba(214,196,255,.8)',8,7]]){
+          ctx.strokeStyle=cl; ctx.lineWidth=wd; ctx.beginPath(); ctx.moveTo(sg.x1,sg.y1);
+          const nx=-(sg.y2-sg.y1), ny=sg.x2-sg.x1, nl=Math.hypot(nx,ny)||1;
+          for(let q7=1;q7<6;q7++){ const t7=q7/6, h=Math.sin((fr+si*13+sd)*12.9898+q7*78.233)*43758.5453, j=(h-Math.floor(h)-.5)*2*amp;
+            ctx.lineTo(lerp(sg.x1,sg.x2,t7)+nx/nl*j,lerp(sg.y1,sg.y2,t7)+ny/nl*j); }
+          ctx.lineTo(sg.x2,sg.y2); ctx.stroke(); } } }
+    ctx.lineCap='butt'; }
 
   /* заборы: не пройти, но простреливаются насквозь */
   for(const f of W.fences){
@@ -5150,9 +5310,10 @@ function render(){
     ctx.globalAlpha=k; ctx.fillStyle=q.col;
     circle(q.x,q.y,q.r*k+.6); ctx.fill(); }
   ctx.globalAlpha=1;
-  for(const q of FXR){ if(q.t<0)continue; const k=q.t/q.life;
+  for(const q of FXR){ if(q.t<0)continue; let k=q.t/q.life, kr=k;
+    if(q.lf){ k=Math.min(1,(Math.floor(q.t*30)+1)/30/q.life); kr=1-(1-k)*(1-k); }   /* 30 кадров, рывок в начале */
     ctx.globalAlpha=(1-k)*(q.thick?.9:.75); ctx.strokeStyle=q.col;
-    ctx.lineWidth=(q.thick?11:5)*(1-k)+1; circle(q.x,q.y,lerp(q.r,q.max,k)); ctx.stroke(); }
+    ctx.lineWidth=(q.thick?11:5)*(1-k)+1; circle(q.x,q.y,lerp(q.r,q.max,kr)); ctx.stroke(); }
   ctx.globalAlpha=1;
 
   /* цифры */
@@ -6028,7 +6189,7 @@ function bakeCorpse(e){ if(!W.bake||!OPT.blood)return;
   const g=DEAD_TMP.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,DEAD_TMP.width,DEAD_TMP.height); g.setTransform(sc,0,0,sc,0,0);
   const e2={...e,x:half,y:half,flash:0,hop:0,walk:(e.ph||0)*5,infected:0,pois:null,armSh:0,rage:0,slow:0,dead:false,
     hp:1,hpMax:1,eye:mix(e.dark||'#3a3530','#000000',.35),
-    elite:false,boss:false,ename:null,shT:0,creep:0};   /* мёртвый: без полоски здоровья, блеска глаз, ауры элиты, подписи и щита босса */
+    elite:false,boss:false,ename:null,shT:0,creep:0,sq:null,burnT:0,fheat:0};   /* мёртвый: без полоски здоровья, блеска глаз, ауры элиты, подписи и щита босса */
   const saved=ctx; ctx=g; try{ drawEnemy(e2,(e.ph||0)*3,false); } finally{ ctx=saved; }
   /* темнеет и заливается кровью только сам силуэт */
   g.globalCompositeOperation='source-atop';
@@ -6380,6 +6541,64 @@ function drawEnemy(e,T,LOD,ally){
       circle(Math.cos(dir)*r*.44+Math.cos(dir+1.57)*i*r*.2,
              Math.sin(dir)*r*.44+Math.sin(dir+1.57)*i*r*.2,r*.13); ctx.fill(); }
     if(e.lp)softGlow(0,0,r*2,'rgba(255,176,74,.4)',.35); }
+  else if(e.form==='link'){
+    /* звено: жук-излучатель, на спине катушка с горящим наконечником */
+    if(legs){ ctx.strokeStyle=dark; ctx.lineWidth=2.6; ctx.lineCap='round';
+      for(let i=0;i<6;i++){ const s2=i<3?-1:1, j=i%3, a=dir+s2*(1.0+j*.55)+Math.sin(w*4+i*1.3)*.22;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a)*r*.4,Math.sin(a)*r*.4);
+        ctx.quadraticCurveTo(Math.cos(a)*r*1.05,Math.sin(a)*r*1.05-4,Math.cos(a)*r*1.5,Math.sin(a)*r*1.42); ctx.stroke(); }
+      ctx.lineCap='butt'; }
+    ctx.save(); ctx.rotate(dir);
+    ctx.fillStyle=dark; ctx.beginPath(); ctx.ellipse(0,0,r*1.12,r*.86,0,0,TAU); ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(-r*.1,-r*.04,r*.9,r*.68,0,0,TAU); ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.32)'; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.moveTo(-r*.95,0); ctx.lineTo(r*.5,0); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-r*.1,0,r*.55,-1.2,1.2); ctx.stroke();
+    ctx.fillStyle=dark; circle(r*.9,0,r*.42); ctx.fill();
+    ctx.fillStyle=eye; circle(r*1.06,-r*.16,r*.11); ctx.fill(); circle(r*1.06,r*.16,r*.11); ctx.fill();
+    ctx.restore();
+    const bx=-Math.cos(dir)*r*.22, by=-Math.sin(dir)*r*.22, pul=.6+.4*Math.sin(T*9+ph*3), on=!!e.sq;
+    ctx.strokeStyle=mix(col,'#ffffff',.35); ctx.lineWidth=2; circle(bx,by,r*.44); ctx.stroke();
+    ctx.strokeStyle=dark; ctx.lineWidth=1.4; circle(bx,by,r*.3); ctx.stroke();
+    if(on) softGlow(bx,by,r*1.4,'rgba(190,160,255,.7)',.3+.25*pul);
+    ctx.fillStyle=on?'#efe6ff':mix(col,'#000000',.2); circle(bx,by,r*.18+(on?pul*1.2:0)); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.12)'; circle(-r*.25,-r*.32,r*.36); ctx.fill(); }
+  else if(e.form==='node'){
+    /* узел: тяжёлый панцирь, три зубца-разрядника и реактор в центре */
+    const on=!!e.sq, pul=.55+.45*Math.sin(T*6+ph*2);
+    if(legs){ ctx.strokeStyle=dark; ctx.lineWidth=5.2; ctx.lineCap='round';
+      for(let i=0;i<6;i++){ const s2=i<3?-1:1, j=i%3, a=dir+s2*(.85+j*.62)+Math.sin(w*2.2+i)*.13;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a)*r*.5,Math.sin(a)*r*.5);
+        ctx.lineTo(Math.cos(a)*r*1.3,Math.sin(a)*r*1.2+Math.abs(Math.sin(w*2.2+i))*4); ctx.stroke(); }
+      ctx.lineCap='butt'; }
+    ctx.fillStyle=dark; blobPath(0,0,r*1.08,T*.5,ph,.035); ctx.fill();
+    ctx.fillStyle=col; blobPath(0,-r*.06,r*.88,T*.5,ph+2,.04); ctx.fill();
+    /* пластины панциря лучами */
+    ctx.strokeStyle='rgba(0,0,0,.33)'; ctx.lineWidth=2.6;
+    for(let i=0;i<6;i++){ const a=dir+i*TAU/6+.52;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a)*r*.42,Math.sin(a)*r*.42); ctx.lineTo(Math.cos(a)*r*.86,Math.sin(a)*r*.86); ctx.stroke(); }
+    ctx.fillStyle='rgba(255,255,255,.09)'; circle(-r*.26,-r*.34,r*.42); ctx.fill();
+    /* три зубца с искрами между ними */
+    const tips=[];
+    for(let i=0;i<3;i++){ const a=dir+Math.PI+(i-1)*1.05;
+      const x1=Math.cos(a)*r*.55, y1=Math.sin(a)*r*.55, x2=Math.cos(a)*r*1.02, y2=Math.sin(a)*r*1.02;
+      ctx.strokeStyle=dark; ctx.lineWidth=6; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      ctx.strokeStyle=mix(col,'#ffffff',.4); ctx.lineWidth=2.2;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.lineCap='butt';
+      ctx.fillStyle=on?'#efe6ff':mix(col,'#000000',.25); circle(x2,y2,r*.1); ctx.fill(); tips.push([x2,y2]); }
+    if(on){ ctx.strokeStyle='rgba(225,210,255,'+(.45+.4*pul)+')'; ctx.lineWidth=1.3; ctx.beginPath();
+      for(let i=0;i<3;i++){ const A=tips[i], B2=tips[(i+1)%3]; ctx.moveTo(A[0],A[1]);
+        const mx=(A[0]+B2[0])/2+Math.sin(T*23+i*2)*4, my=(A[1]+B2[1])/2+Math.cos(T*19+i*3)*4;
+        ctx.lineTo(mx,my); ctx.lineTo(B2[0],B2[1]); }
+      ctx.stroke(); }
+    /* реактор */
+    ctx.fillStyle=dark; circle(0,0,r*.4); ctx.fill();
+    ctx.strokeStyle=mix(col,'#ffffff',.3); ctx.lineWidth=2; circle(0,0,r*.4); ctx.stroke();
+    if(on) softGlow(0,0,r*1.6,'rgba(180,150,255,.75)',.35+.3*pul);
+    ctx.fillStyle=on?'#d8c8ff':mix(col,'#000000',.3); circle(0,0,r*.26+(on?pul*2:0)); ctx.fill();
+    ctx.fillStyle=on?'#ffffff':mix(col,'#000000',.1); circle(0,0,r*.12); ctx.fill();
+    ctx.fillStyle=eye; for(const sd of [-1,1]){ circle(Math.cos(dir)*r*.8+Math.cos(dir+1.57)*sd*r*.22, Math.sin(dir)*r*.8+Math.sin(dir+1.57)*sd*r*.22, r*.09); ctx.fill(); } }
   else if(e.form==='armored'){
     if(legs){ ctx.strokeStyle=dark; ctx.lineWidth=4.4; ctx.lineCap='round';
       for(let i=0;i<4;i++){ const a=dir+(i<2?-1:1)+(i%2?.45:-.45)+Math.sin(w*2.2+i)*.14;
@@ -6492,6 +6711,7 @@ function drawEnemy(e,T,LOD,ally){
     ctx.lineCap='butt'; ctx.globalAlpha=1;
     softGlow(x,y,r*2.4,'rgba(200,107,255,.6)',.4*k); }
   if(e.pois)softGlow(x,y,r*2.2,'rgba(200,107,255,.45)',.45);
+  if(e.burnT>0)softGlow(x,y,r*(2+(e.fheat||0)*1.6),'rgba(255,120,50,.55)',.35+(e.fheat||0)*.6);   /* горит; ярче — сильнее нагрет */
   if(ally)softGlow(x,y,r*2.4,'rgba(200,107,255,.5)',.4);
   /* щит босса: переливающийся купол, пока он восстанавливается */
   if(e.boss&&(e.creep||0)>.25&&!ally){
