@@ -8531,7 +8531,18 @@ el('abGo').addEventListener('click',()=>{ renderMissions(); show('misScreen'); e
 el('backCls').addEventListener('click',()=>{ renderAbils(); show('abScreen'); });
 el('startBtn').addEventListener('click',()=>openBrief());
 el('briefBack').addEventListener('click',()=>{ planetActive=false; show('misScreen'); });
-el('briefGo').addEventListener('click',()=>{ planetActive=false; startRun(); });
+/* Во весь экран. Браузеры (Chrome, Яндекс, Brave) не дают включить его вручную — только сама страница
+   по нажатию игрока. Включаем на «Начать» на телефоне/планшете и кнопкой в паузе; боком закрепляем экран, если можно. */
+function isFull(){ return !!(document.fullscreenElement||document.webkitFullscreenElement); }
+function goFull(on){ try{ const d=document.documentElement;
+  if(on===false||(on===undefined&&isFull())){ (document.exitFullscreen||document.webkitExitFullscreen||(()=>{})).call(document); return; }
+  if(isFull())return;
+  const r=(d.requestFullscreen||d.webkitRequestFullscreen); if(!r)return;
+  const pr=r.call(d,{navigationUI:'hide'});
+  const lock=()=>{ try{ screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} };
+  if(pr&&pr.then) pr.then(lock).catch(()=>{}); else lock(); }catch(e){} }
+document.addEventListener('fullscreenchange',()=>{ try{ if(paused&&W)renderPause(); }catch(e){} });
+el('briefGo').addEventListener('click',()=>{ if(TOUCH&&OPT.full!==0) goFull(true); planetActive=false; startRun(); });
 /* --- живая планета на экране брифинга --- */
 let planetTex=null,planetBiome=null,planetT=0,planetActive=false;
 function makePlanetTex(biome){
@@ -8722,12 +8733,14 @@ function renderPause(){
     `<button class="tg on" data-k="fps">${U('optFps')}: ${OPT.fps||60}</button>`+
     (TOUCH?`<button class="tg on" data-k="stick">${U('optStick')}: ${[U('stickS'),U('stickM'),U('stickL')][OPT.stick]}</button>`:'')+
     (TOUCH?`<button class="tg ${OPT.aimAssist?'on':''}" data-k="aimAssist">${U('optAim')}</button>`:'')+
+    ((document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen)?`<button class="tg ${isFull()?'on':''}" data-k="full">${tt('ВО ВЕСЬ ЭКРАН','FULLSCREEN')}</button>`:'')+
     `<div class="fpsline">FPS ${FPS} · ${W.enemies.length} ${tt('целей','targets')}</div>`;
   el('pauseOpt').querySelectorAll('.tg').forEach(n=>n.addEventListener('click',()=>{
     const k=n.dataset.k;
     if(k==='quality') OPT.quality={auto:'high',high:'low',low:'auto'}[OPT.quality];
     else if(k==='fps') OPT.fps=(OPT.fps||60)===60?30:60;   /* только 60 и 30 */
     else if(k==='stick'){ OPT.stick=(OPT.stick+1)%3; applyStick(); }
+    else if(k==='full'){ const on=!isFull(); OPT.full=on?1:0; goFull(on); }   /* выбор запоминается: выключил — на «Начать» больше не включаем */
     else OPT[k]=OPT[k]?0:1;
     saveOpt(); renderPause(); S.ready(); }));
 }
