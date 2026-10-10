@@ -907,12 +907,13 @@ function smp(k,vol,rate){ if(!AC||muted||!SMP[k])return false; vol*=SNDK;
   s.buffer=SMP[k]; s.playbackRate.value=rate*(.88+Math.random()*.24);
   g.gain.value=vol*(SMP_GAIN[k]||1); s.connect(g); g.connect(MASTER); s.start(); return true; }
 function audioInit(){ if(AC)return; try{ AC=new (window.AudioContext||window.webkitAudioContext)();
-  OUT=AC.createGain(); OUT.connect(AC.destination);
+  OUT=AC.createGain();
+  try{ const L=AC.createDynamicsCompressor(); L.threshold.value=-8; L.knee.value=6; L.ratio.value=12; L.attack.value=.003; L.release.value=.18; OUT.connect(L); L.connect(AC.destination); }catch(e){ OUT.connect(AC.destination); }
   MASTER=AC.createGain(); MASTER.connect(OUT);
   MUSG=AC.createGain(); MUSG.connect(OUT);
   applyVolume(true); smpLoad(); }catch(e){AC=null;} }
 /* База громкости поднята на 40% (было .28). Ползунки паузы умножают её. */
-const VOL_BASE=.392, MUS_BASE=.85;   /* музыку было плохо слышно — громче в 2,5 раза */
+const VOL_BASE=.98, MUS_BASE=.85;   /* общая громкость ×2,5 (было .392); на выходе ограничитель, чтобы не хрипело */   /* музыку было плохо слышно — громче в 2,5 раза */
 function applyVolume(now){ if(!AC||!OUT)return;
   const t=AC.currentTime, k=now?0:.05;
   const set=(p,v)=>{ if(now) p.value=v; else p.setTargetAtTime(v,t,k); };
@@ -1172,15 +1173,15 @@ const BIOMES={
 
 /* =========================================================== МИССИИ */
 const MISSIONS=[
- {id:'i1',bake:1,simpleAi:1,name:['Выгрузка','Unloading'],biome:'asphalt',elite:0,pool:['crawler'],
+ {id:'i1',bake:1,name:['Выгрузка','Unloading'],biome:'asphalt',elite:0,pool:['crawler'],
   brief:['Площадка выгрузки. Здесь водятся только ползуны.','The unloading pad. Nothing here but crawlers.'],
   planet:["КЕРИД-4","KERID-4"],story:["Корпус ещё пахнет заводской смазкой. Диспетчер держит вас на площадке выгрузки, пока приборы не прогреются: тут водятся только ползуны — медленные, тупые, идут строго на шум двигателя. Разомнитесь на них.","The hull still smells of factory grease. Control keeps you on the unloading pad until the instruments warm up: only crawlers live here — slow, stupid, drawn straight to engine noise. Warm up on them."],beats:[[20,["ДИСПЕТЧЕР: ПОЛЗУНЫ ИДУТ НА ЗВУК","CONTROL: CRAWLERS TRACK YOUR NOISE"]],[60,["ДИСПЕТЧЕР: ПРИБОРЫ В НОРМЕ","CONTROL: INSTRUMENTS NOMINAL"]]],
   goals:[{t:'kill',n:200},{t:'survive',n:90}]},
- {id:'i2',bake:1,ores:['amyx'],oreReq:['kill'],name:['Тихий сектор','Quiet Sector'],biome:'ruins',elite:0,pool:['sprinter','stalker'],
+ {id:'i2',bake:1,flank:'mantis',ores:['amyx'],oreReq:['kill'],name:['Тихий сектор','Quiet Sector'],biome:'ruins',elite:0,pool:['sprinter','stalker'],
   brief:['Здесь быстрые. Бегуны налетают, охотники ждут в стороне.','Fast ones here. Sprinters rush, stalkers wait aside.'],
   planet:["АРГЕЛЛА","ARGELLA"],story:["В кварталах за стеной ползунов нет — их вытеснили те, кто быстрее. Бегуны кидаются в лоб и сгорают об броню. Охотники держатся сбоку и ждут, пока вы отвернётесь. Научитесь смотреть в две стороны сразу.","Beyond the wall there are no crawlers — they were pushed out by faster things. Sprinters charge head-on and burn against armour. Stalkers hang back and wait for you to turn away. Learn to watch two directions at once."],beats:[[25,["СКАНЕР: ОХОТНИКИ ЗАХОДЯТ СБОКУ","SCANNER: STALKERS FLANK YOU"]],[75,["СКАНЕР: НЕ ДАВАЙТЕ ИМ СОБРАТЬСЯ","SCANNER: DO NOT LET THEM GATHER"]]],
   goals:[{t:'kill',n:150},{t:'survive',n:110,req:['kill','ore_amyx']}]},
- {id:'i3',bossStart:1,name:['Глубокий рейд','Deep Raid'],biome:'dust',elite:0,pool:['bloater','spitter'],
+ {id:'i3',bossStart:1,flank:'mantis',name:['Глубокий рейд','Deep Raid'],biome:'dust',elite:0,pool:['bloater','spitter'],
   brief:['Тяжёлые и дальнобойные. Держите дистанцию с умом.','Heavy and ranged. Mind your spacing.'],
   planet:["САЖЕНЬ","SAZHEN"],story:["Дальше по цепи пески. Пузыри лопаются и оставляют после себя облако — рядом с ними не стоят. Плевуны бьют издалека и не подходят вовсе. Одних нельзя подпускать, других нельзя отпускать. Разберитесь, как держать обоих.","Further along the chain there is sand. Bloaters burst and leave a cloud — you do not stand near them. Spitters strike from range and never close in. One kind must be kept away, the other must not be allowed to keep away. Work out how to hold both."],beats:[[30,["СЕЙСМИКА: ПУЗЫРИ ЛОПАЮТСЯ ПРИ СМЕРТИ","SEISMICS: BLOATERS BURST WHEN KILLED"]],[85,["СЕЙСМИКА: ПЛЕВУНЫ ДЕРЖАТ ДИСТАНЦИЮ","SEISMICS: SPITTERS KEEP THEIR RANGE"]]],
   goals:[{t:'kill',n:180},{t:'boss',n:1},{t:'explore',n:6},{t:'survive',n:130,req:['kill','boss','explore']}]},
@@ -1587,7 +1588,7 @@ const atkK=lv=>2-(Math.min(5,Math.max(1,lv))-1)/4;
 const mDmg=()=>(1+W.pas.power*.13)*(hasR('overload')?1.2:1)*AU('dmg')*(1+(W.dmgBonus||0))*(1+.18*((W.infD||0)+((W.infNew&&W.infNew.idmg)||0)));   /* ∞ Ярость */   /* ящики урона из «Выживания» */
 const mRate=()=>1/((1+W.pas.rate*.10)*(hasR('kinetic')?1.15:1)*AU('rate'));
 const mSpd=()=>(1+W.pas.speed*.08)*AU('speed');
-const mMag=()=>(1+W.pas.magnet*.30)*(hasR('symbiote')?1.25:1);
+const mMag=()=>(1+W.pas.magnet*.36)*(hasR('symbiote')?1.25:1);
 const mArea=()=>1+W.pas.area*.12;
 const mCool=()=>1/((1+W.pas.cool*.14)*(hasR('resonator')?1.22:1));
 
@@ -1787,6 +1788,11 @@ function ignite(e,dps,dur){ if(!(e.burnT>0)){ e.burnTk=.5; e.burnDps=dps; } else
   e.burnT=Math.max(e.burnT||0,dur); }
 function poison(e,dps,dur,src){ if(!e.pois||e.pois.dps<dps)e.pois={dps,t:dur,src,base:HURT_BASE}; else { e.pois.t=Math.max(e.pois.t,dur); if(src)e.pois.src=src; e.pois.base=HURT_BASE; } }
 const BULLET_CAP=240;
+/* кристалл опыта на земле. Когда их слишком много, новый вливается в ближайший — поле не засыпается тысячами */
+function dropXp(x,y,xp,sp){ if(!(xp>0))return;
+  if(W.shards.length>=220){ let b=null,bd=1e9; for(const s of W.shards){ const d=Math.abs(s.x-x)+Math.abs(s.y-y); if(d<bd){bd=d;b=s;} }
+    if(b&&bd<160){ b.xp+=xp; return; } if(b){ b.xp+=xp; return; } }
+  W.shards.push({x,y,vx:rr(-sp,sp),vy:rr(-sp,sp),xp,ph:rr(0,TAU)}); }
 function proj(o){ const b=Object.assign({r:5,life:2,pierce:0,col:'#fff4d8',edge:null,hit:[]},o);
   b.ox=b.x; b.oy=b.y;
   if(W.bullets.length>=BULLET_CAP)W.bullets.shift();   /* поток снарядов не растёт бесконечно */
@@ -2085,7 +2091,7 @@ const PASSIVES={
  rate:{name:['Автоподача','Autoloader'],glyph:'⟳',max:5,col:'#ffc46b',desc:l=>tt(`Скорострельность +${l*10}%.`,`Fire rate +${l*10}%.`)},
  speed:{name:['Ходовая часть','Drive Train'],glyph:'⇢',max:5,col:'#7fd98a',desc:l=>tt(`Скорость корпуса +${l*8}%.`,`Hull speed +${l*8}%.`)},
  hull:{name:['Броневые плиты','Armour Plating'],glyph:'▣',max:5,col:'#8fb8ff',desc:l=>tt(`Общее здоровье +${l}%.`,`+${l}% total integrity.`)},
- magnet:{name:['Магнитный сбор','Magnetic Pickup'],glyph:'◇',max:5,col:'#4db2ff',desc:l=>tt(`Радиус сбора трофеев +${l*30}%.`,`Pickup radius +${l*30}%.`)},
+ magnet:{name:['Магнитный сбор','Magnetic Pickup'],glyph:'◇',max:5,col:'#4db2ff',desc:l=>tt(`Радиус сбора трофеев +${l*36}%.`,`Pickup radius +${l*36}%.`)},
  regen:{name:['Полевой ремонт','Field Repair'],glyph:'✚',max:5,col:'#7fd98a',desc:l=>tt(`Восстановление ${(l*.6).toFixed(1)} единицы в секунду.`,`Repairs ${(l*.6).toFixed(1)} per second.`)},
  armor:{name:['Экранировка','Spaced Armour'],glyph:'◐',max:5,col:'#b8c6dc',desc:l=>tt(`Каждый удар по вам слабее на ${l*2} единицы.`,`Every hit on you is reduced by ${l*2}.`)},
  area:{name:['Расширитель','Field Extender'],glyph:'◯',max:5,col:'#c89bff',desc:l=>tt(`Радиус всех эффектов +${l*12}%.`,`All effect radii +${l*12}%.`)},
@@ -2489,6 +2495,10 @@ const ETYPES={
    split:{type:'wyrmling',n:2},blood:'#4aa8ff'},
  wyrmling:{hp:24,sp:100,r:11,dmg:9,xp:2,form:'wyrm',col:'#7cc98d',dark:'#33633c',eye:'#c8ff8a',blood:'#4aa8ff'},
  hauler:{hp:420,sp:22,r:30,dmg:24,xp:16,form:'hauler',col:'#6fae7c',dark:'#2f5f43',eye:'#c8ff8a',armor:8,blood:'#4aa8ff'},
+ /* богомол: полупрозрачный, скрытный. Герой стоит — подбирается со скоростью охотника (60);
+    герой бежит — держит его темп (97% скорости героя без рывка), убежать нельзя, только встретить.
+    Приходит не в общем потоке, а волной с одной стороны по широкой дуге (см. flankWave) */
+ mantis:{hp:30,sp:60,r:14,dmg:13,xp:2,form:'mantis',col:'#a582d7',dark:'#46326a',eye:'#ff78c8',blood:'#4aa8ff'},
  stalker:{hp:27,sp:56,r:13,dmg:13,xp:2,form:'stalker',col:'#6fb3a2',dark:'#2f5f55',eye:'#b6ffe6',lurch:1,blood:'#7fbf3f'},
  brood:{hp:58,sp:34,r:23,dmg:14,xp:6,form:'brood',col:'#b364ab',dark:'#5f2f5c',eye:'#ff8ad0',spawner:1,blood:'#4aa8ff'},
  /* --- поздние тяжёлые: медленные, но больно бьют --- */
@@ -2848,7 +2858,7 @@ function childPool(want){
   return f.length?f:['crawler'];
 }
 /* цена врага в очках: растёт с прочностью и опасностью */
-const PTS={crawler:1,weblet:1,wyrmling:1,sprinter:2,stalker:2,arachnid:2,spitter:3,bloater:3,
+const PTS={mantis:3,crawler:1,weblet:1,wyrmling:1,sprinter:2,stalker:2,arachnid:2,spitter:3,bloater:3,
   wyrm:5,brood:6,hulk:8,arachne:10,armored:10,hauler:12,siege:14,juggernaut:20};
 function ptsFor(e){ let v=PTS[e.type]||2;
   if(e.boss) v=150; else if(e.elite) v*=3;
@@ -2888,9 +2898,9 @@ const AB_ICONS={
 function abIcon(d){ return (d&&d.icon&&AB_ICONS[d.icon])||((d&&d.glyph)||''); }
 
 const WEAK_T={crawler:1,sprinter:1,stalker:1,weblet:1,wyrmling:1};
-/* слабые (ползуны, бегуны, охотники) уходят после 2,5 минуты боя —
+/* слабые (ползуны, бегуны, охотники) уходят после третьего затишья (~3:10) —
    везде, кроме двух первых вводных, где сильных нет вовсе */
-function weakGone(){ return !!W.weakOff || (W.mid!=='i1'&&W.mid!=='i2'&&W.t>=150); }
+function weakGone(){ return !!W.weakOff || (W.mid!=='i1'&&W.mid!=='i2'&&(W.phase||0)>=3); }   /* мелочь уходит после третьего затишья (~3:10) */
 function poolFor(){
   const r0=poolFor0();
   if(!W.weakOff&&weakGone()){ const f=r0.filter(t=>!WEAK_T[t]); return f.length?f:['hulk','bloater','spitter']; }
@@ -2924,12 +2934,16 @@ function poolByTime(){
   else if(late<480) pool.push('crawler');
   if(late>=420){ pool.push('hulk','armored'); }
   if(late>=540){ pool.push('siege','juggernaut'); }
-  if(W.t>28)pool.push('sprinter'); if(W.t>55)pool.push('stalker');
-  if(W.t>66)pool.push('bloater'); if(W.t>85)pool.push('wyrm');
-  if(W.t>100)pool.push('spitter'); if(W.t>135)pool.push('hulk','crawler');
-  if(W.t>160)pool.push('arachne'); if(W.t>185)pool.push('brood');
-  if(W.t>230)pool.push('armored'); if(W.t>300)pool.push('siege','armored');
-  if(W.t>370)pool.push('juggernaut');
+  /* набор растёт по фазам (фаза = число пройденных затиший, каждая ≈ 60–70 с):
+     ф0 ползуны (+бегуны с 28-й с) · ф1 охотники, раздутни, черви · ф2 плевуны, громилы ·
+     ф3 паучихи, выводок (мелочь уходит) · ф4 броненосцы · ф5 осадники · ф6 джаггернауты */
+  const P=W.phase||0;
+  if(W.t>28||P>=1)pool.push('sprinter');
+  if(P>=1)pool.push('stalker','bloater','wyrm');
+  if(P>=2)pool.push('spitter','hulk','crawler');
+  if(P>=3)pool.push('arachne','brood');
+  if(P>=4)pool.push('armored'); if(P>=5)pool.push('siege','armored');
+  if(P>=6)pool.push('juggernaut');
   if(late>=300){                      /* убираем самых мелких из набора */
     const weak={crawler:1,sprinter:1};
     const f2=pool.filter(t=>!weak[t]||late<480);
@@ -2938,6 +2952,36 @@ function poolByTime(){
   if(!pool.length) pool.push('stalker');
   return pool;
 }
+/* ФЛАНГ: в заданиях с flank — после первого затишья раз в 32–42 с отряд одного типа выходит
+   с одной стороны по широкой дуге (~125°), а не из точки. За 1,6 с до выхода — красная дуга-предупреждение. */
+function flankWave(dt){ const M=MISSIONS.find(m=>m.id===W.mid); if(!M||!M.flank)return;
+  if(W.flank){ W.flank.t-=dt;
+    if(W.flank.t<=0&&!W.flank.out){ W.flank.out=1; const f=W.flank, n=f.n, d0=Math.max(VW,VH)*.62+rr(60,140);
+      for(let i=0;i<n;i++){ const a=f.a+(n>1?(i/(n-1)-.5):0)*2.2+rr(-.07,.07), d=d0+rr(0,90);
+        spawnE(M.flank,clamp(W.p.x+Math.cos(a)*d,40,W.size-40),clamp(W.p.y+Math.sin(a)*d,40,W.size-40),1,true); } }
+    if(W.flank.t<-1.2) W.flank=null; return; }
+  if((W.phase||0)<1||W.calm>0||W.motherFight||W.motherEv) return;
+  W.flankT=(W.flankT===undefined?6:W.flankT)-dt;
+  if(W.flankT<=0){ W.flankT=rr(32,42);
+    W.flank={a:rr(0,TAU),t:1.6,n:Math.min(12,Math.round((4+(W.phase||0))*(W.floorK||1)))};
+    toast(tt('ФЛАНГ: '+(ENAME[M.flank]?L(ENAME[M.flank]):''),'FLANK: '+(ENAME[M.flank]?L(ENAME[M.flank]):'')).toUpperCase()); S.thud(); } }
+function drawFlankWarn(T){ const f=W.flank; if(!f||f.t<=0)return; const R=Math.min(VW,VH)*.42, p=W.p;
+  ctx.save(); ctx.globalAlpha=.35+.35*Math.abs(Math.sin(T*9)); ctx.strokeStyle='#ff5a5a'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.setLineDash([16,12]); ctx.beginPath(); ctx.arc(p.x,p.y,R,f.a-1.1,f.a+1.1); ctx.stroke(); ctx.setLineDash([]);
+  for(const k of [-1,0,1]){ const a=f.a+k*.75, x=p.x+Math.cos(a)*(R-14), y=p.y+Math.sin(a)*(R-14);
+    ctx.beginPath(); ctx.moveTo(x+Math.cos(a)*12,y+Math.sin(a)*12); ctx.lineTo(x+Math.cos(a+2.6)*10,y+Math.sin(a+2.6)*10); ctx.lineTo(x+Math.cos(a-2.6)*10,y+Math.sin(a-2.6)*10); ctx.closePath();
+    ctx.fillStyle='#ff5a5a'; ctx.fill(); }
+  ctx.restore(); }
+/* имена тварей для объявления новой фазы */
+const ENAME={crawler:['ползуны','crawlers'],sprinter:['бегуны','runners'],stalker:['охотники','stalkers'],bloater:['раздутни','bloaters'],
+  wyrm:['черви','wyrms'],spitter:['плевуны','spitters'],hulk:['громилы','hulks'],arachne:['паучихи','arachnes'],brood:['матки выводка','broods'],
+  armored:['броненосцы','armored'],siege:['осадники','siegers'],juggernaut:['джаггернауты','juggernauts'],mantis:['богомолы','mantises']};
+/* конец затишья: фаза +1. Новые типы первые 18 с идут чаще остальных, чтобы их было видно */
+function phaseUp(){ const before=new Set(poolFor()); W.phase=(W.phase||0)+1;
+  const nw=[...new Set(poolFor())].filter(t=>!before.has(t));
+  W.fresh=nw.length?{types:nw,t:18}:null;
+  toast(nw.length?tt('ОНИ ВОЗВРАЩАЮТСЯ · НОВЫЕ: ','THEY ARE BACK · NEW: ')+nw.map(t=>ENAME[t]?L(ENAME[t]):t).join(', '):tt('ОНИ ВОЗВРАЩАЮТСЯ','THEY ARE COMING BACK'));
+  S.thud(); }
 /* волна выбирает манеру: ровный поток, стая с одной стороны, клещи, окружение или засада */
 function pickPattern(){
   const r=rng();
@@ -2952,12 +2996,17 @@ function pickPattern(){
 }
 function waves(dt){
   const B=BIOMES[W.biome];
-  /* ЗАТИШЬЕ: раз в 50–70 с на 6–8 с враги перестают прибывать, дальние замирают и отходят.
-     Окно, чтобы добыть минерал, подорвать точку, выбрать улучшение. В бою с маткой затишья нет. */
-  if(W.calmNext===undefined) W.calmNext=rr(50,65);
-  if(W.calm>0){ W.calm-=dt; if(W.calm<=0) toast(tt('ОНИ ВОЗВРАЩАЮТСЯ','THEY ARE COMING BACK')); }
-  else if(W.t>=W.calmNext&&!W.motherFight&&!W.motherEv){ W.calm=rr(6,8); W.calmNext=W.t+W.calm+rr(50,70); W.surge=0; W.surgeT=Math.max(W.surgeT||0,W.calm+4);
+  /* ЗАТИШЬЕ: первое на ~50-й с, дальше раз в 45–55 с боя. 13–15 с новые враги не прибывают —
+     время расчистить место, добыть минерал, подорвать точку. Живые продолжают нападать.
+     После затишья — новая ФАЗА: в набор входят новые типы (а мелочь в 4-й фазе уходит).
+     В бою с маткой затишья нет. */
+  if(W.calmNext===undefined){ W.calmNext=rr(48,54); W.phase=0; }
+  if(W.calm>0){ W.calm-=dt; if(W.calm<=0) phaseUp(); }
+  else if(W.t>=W.calmNext&&!W.motherFight&&!W.motherEv){ W.calm=rr(13,15); W.calmNext=W.t+W.calm+rr(45,55); W.surge=0; W.surgeT=Math.max(W.surgeT||0,W.calm+4);
     toast(tt('ЗАТИШЬЕ','LULL')); S.ready(); }
+  /* бой с маткой без затишья: фаза всё равно идёт по часам, чтобы набор тварей не застывал */
+  else if(W.t>=W.calmNext+20&&(W.motherFight||W.motherEv)){ W.calmNext=W.t+rr(45,55); phaseUp(); }
+  if(W.fresh){ W.fresh.t-=dt; if(W.fresh.t<=0) W.fresh=null; }
   W.surgeT=(W.surgeT||0)-dt;
   if(W.surgeT<=0){
     if(W.surge){ W.surge=0; W.surgeT=rr(10,16); }
@@ -3053,11 +3102,12 @@ function waves(dt){
   if(W.mid!=='i1'&&W.mid!=='i2'&&W.mid!=='i3'){
     if(W.sqNext===undefined) W.sqNext=95;
     if(W.t>=W.sqNext&&!W.motherFight&&!(W.calm>0)){ W.sqNext=W.t+rr(80,110); if(W.squads.length<2) spawnSquad(); } }
-  W.spawnAcc+=dt*Math.min(W.surge?10:7,raw)*lullK*(W.baseWave||1)*earlyK*(W.motherFight?0:1)*(W.calm>0?0:1);   /* в затишье никто не прибывает */   /* бой с маткой — только её выводок */
+  W.spawnAcc+=dt*Math.min(W.surge?10:7,raw)*lullK*(W.baseWave||1)*earlyK*(W.motherFight?0:1)*(W.calm>0?0:1.15);   /* пауза 13–15 с съедает ~20% времени — в бою поток на 15% гуще */   /* в затишье никто не прибывает */   /* бой с маткой — только её выводок */
   /* запас появления не копится сверх трёх: иначе после массового убийства
      накопленное высыпалось толпой за один кадр */
   if(W.enemies.length>=cap) W.spawnAcc=Math.min(W.spawnAcc,1);
   W.spawnAcc=Math.min(W.spawnAcc,3);
+  flankWave(dt);
   const pool=poolFor();
   const far=()=>Math.max(VW,VH)*.72+rr(90,240);
   let perTick=0;
@@ -3080,6 +3130,7 @@ function waves(dt){
     let tp;
     if(W.pat==='pack'){ if(!W.packType||rng()<.05)W.packType=rpick(pool); tp=W.packType; }
     else tp=rpick(pool);
+    if(W.fresh&&rng()<.45){ const fr=W.fresh.types.filter(t=>pool.indexOf(t)>=0); if(fr.length) tp=rpick(fr); }
     /* Быстрые появляются дальше: иначе бегун из-за края экрана добегает раньше,
        чем успеваешь развернуться, особенно на телефоне. */
     const spd=(ETYPES[tp]&&ETYPES[tp].sp)||50;
@@ -3558,9 +3609,8 @@ function update(dt){
       if(e.burnT<=0){ e.fheat=0; e.fhT=0; } }
     if(e.pois){ e.pois.t-=dt; HURT_BASE=!!e.pois.base; hurt(e,e.pois.dps*dt,e.pois.src); HURT_BASE=false; if(e.pois&&e.pois.t<=0)e.pois=null; }
     if(e.slime>0)e.slime-=dt;
-    /* затишье: все, кто дальше 300 (не элиты, не стража, не отряды), отходят — вплотную добиваешь сам */
-    if(W.calm>0&&!e.boss&&!e.elite&&!e.guardOf&&!e.sq&&!e.trophy){ const cx=e.x-p.x, cy=e.y-p.y, cd=Math.hypot(cx,cy)||1;
-      if(cd>300){ const back=e.sp*.45*dt; e.x+=cx/cd*back; e.y+=cy/cd*back; e.dir=Math.atan2(cy,cx);   /* уходят мордой вперёд, а не пятятся */ e.walk+=dt*.15; collideObst(e,e.r); continue; } }
+    if(e.type==='mantis'){ const ps=Math.hypot(p.vx,p.vy), cap=p.speed*mSpd();
+      e.sp=lerp(e.sp,ps>25?Math.max(60,Math.min(ps,cap)*.97):60,Math.min(1,dt*3)); }
     let tx=p.x,ty=p.y,tgt=null,tgtR=p.r,isBeacon=false,bldTgt=null;
     for(const al of W.allies) if(Math.hypot(al.x-e.x,al.y-e.y)<170){ tx=al.x;ty=al.y;tgt=al;tgtR=al.r;break; }
     if(!tgt&&W.cores.length){
@@ -4544,20 +4594,11 @@ function update(dt){
       if(W.bossKills%4===0){ (W.dmgCrates=W.dmgCrates||[]).push({x:e.x,y:e.y,r:15,ph:rr(0,TAU)});
         toast(tt('ЯЩИК УРОНА','DAMAGE CRATE')); } }
     const B2=BIOMES[W.biome];
-    /* основной опыт начисляется сразу и зависит от класса цели;
-       убитый турелью базы опыта не даёт — это не заслуга героя */
-    /* убитый турелью базы даёт 35% опыта (было 0) — уровень не отстаёт, но и даром не даётся */
-    const gain=e.lastBase?e.xp*B2.xp*.35:Math.max(1,Math.round(e.xp*B2.xp));
-    if(gain) gainXp(gain,true);
-    if(gain&&e.xp>=3&&!e.lastBase) popup(e.x,e.y-e.r-6,'+'+gain,'#a9dcff');
-    /* сгустки выпадают редко и стоят вчетверо дороже */
-    if(e.lastBase){}
-    else if(e.boss||e.elite){ for(let k=0;k<(e.boss?6:3);k++)
-        W.shards.push({x:e.x+rr(-20,20),y:e.y+rr(-20,20),vx:rr(-50,50),vy:rr(-50,50),
-          xp:Math.max(2,Math.round(e.xp*B2.xp*.5)),ph:rr(0,TAU)}); }
-    else if(rng()<.08)
-      W.shards.push({x:e.x,y:e.y,vx:rr(-40,40),vy:rr(-40,40),
-        xp:Math.max(2,Math.round(e.xp*B2.xp*4)),ph:rr(0,TAU)});
+    /* Опыт — только подобранный. С каждой твари падает кристалл опыта; за убитых турелью базы — 35% цены.
+       Элита и босс рассыпают несколько кристаллов (в сумме — полуторная цена), изредка выпадает крупный (×4). */
+    { const val=e.xp*B2.xp*(e.lastBase?.35:1);
+      if(e.boss||e.elite){ const n=e.boss?6:3; for(let k=0;k<n;k++) dropXp(e.x+rr(-24,24),e.y+rr(-24,24),val*1.5/n,70); }
+      else { dropXp(e.x,e.y,val,40); if(!e.lastBase&&rng()<.04) dropXp(e.x+rr(-10,10),e.y+rr(-10,10),val*4,50); } }
     if(e.type==='hauler'){ W.rcrates.push({x:e.x,y:e.y,r:17,ph:rr(0,TAU)});
       toast(tt('ЯЩИК ВЫПАЛ','CRATE DROPPED')); S.land(); }
     /* крупные твари иногда роняют полевую аптечку */
@@ -4611,12 +4652,12 @@ function update(dt){
     if(g.cur>=g.n){ g.done=true; S.obj(); checkWin(); } }
 
   /* трофеи */
-  const magR=94*mMag();
+  const magR=72*mMag();   /* базовый сбор опыта уменьшен (было 94); модуль «Магнитный сбор» сильнее */
   for(let i=W.shards.length-1;i>=0;i--){ const s=W.shards[i];
     const dx=p.x-s.x,dy=p.y-s.y,d=Math.hypot(dx,dy)||1;
     if(d<magR){ const pull=(1-d/magR)*440+140; s.vx+=dx/d*pull*dt*6; s.vy+=dy/d*pull*dt*6; }
     s.x+=s.vx*dt; s.y+=s.vy*dt; s.vx*=Math.pow(.93,dt*60); s.vy*=Math.pow(.93,dt*60);
-    if(d<p.r+10){ gainXp(s.xp); W.shards.splice(i,1); } }
+    if(d<p.r+10){ gainXp(s.xp,true); xpChime(s.xp>=12?2:(s.xp>=4?1:0)); W.shards.splice(i,1); } }
 
   /* эффекты */
   for(let i=FXP.length-1;i>=0;i--){ const q=FXP[i]; q.t+=dt; q.x+=q.vx*dt; q.y+=q.vy*dt;
@@ -5363,11 +5404,8 @@ function render(){
   for(const o of W.obstacles){ if(!vis(o.x,o.y,o.r))continue; drawObstacle(o,B); }
 
   /* трофеи */
-  for(const s of W.shards){ if(!vis(s.x,s.y,20))continue;
-    const b=.6+Math.sin(T*4+s.ph)*.25;
-    softGlow(s.x,s.y,15,'rgba(121,192,255,.55)',b*.7);
-    ctx.fillStyle='#cfe9ff'; circle(s.x,s.y,4.6); ctx.fill();
-    ctx.fillStyle='#fff'; circle(s.x-1,s.y-1.2,2); ctx.fill(); }
+  /* кристаллы опыта: готовая картинка по ступени цены, без анимации — каждый стоит одну команду */
+  for(const s of W.shards){ if(!vis(s.x,s.y,20))continue; const spr=xpSprite(s.xp>=12?2:(s.xp>=4?1:0)); drawSprite(spr,s.x,s.y); }
 
   /* ящики */
   for(const c2 of W.crates){ if(!vis(c2.x,c2.y,40))continue; drawCrate(c2,T); }
@@ -5430,12 +5468,14 @@ function render(){
   /* враги */
   const LOD=W.enemies.length>(QUAL?90:150);
   for(const h of DIGS) if(vis(h.x,h.y,h.r*1.6)) drawHole(h);
+  drawFlankWarn(T);
   if(W.motherEv&&W.motherEv.t<3.25) drawMotherDig(W.motherEv,T);
   drawDirt(false,vis);
   for(const e of W.enemies){
     if(e.bur>0&&e.burTo&&!burSame(e)&&vis(e.burTo.x,e.burTo.y,e.r*2)) drawRise(e,T,e.burTo.x,e.burTo.y);   /* где вылезет — земля уже вспучивается */
     if(!vis(e.x,e.y,e.r+20)){ if(e._pc) poseRelease(e); continue; }   /* ушёл за экран — картинку в запас */
     if(e.bur>0){ if(burSame(e)) drawRise(e,T,e.x,e.y); else drawMound(e,T); continue; }
+    if(e.type==='mantis'&&!e.elite&&!e.boss){ drawMantis(e,T,LOD); continue; }
     if(OPT.efps===60||OPT.rmode===2||e.boss||e.elite) drawEnemy(e,T,LOD); else drawEnemyPosed(e,T,LOD);
     /* щит босса из «Выживания»: голубая оболочка, тускнеет вместе с запасом щита */
     if(e.armSh>0){ const k=e.armSh/e.armShMax, rr5=e.r*1.32;
@@ -6344,6 +6384,52 @@ function drawAlien(o){
    каждый кадр — это была половина всех команд рисования. Теперь каждый рисуется
    один раз в картинку под текущий масштаб экрана, а кадр лишь ставит её. */
 function sprScale(){ return DPR*ZOOM; }
+/* картинки кристаллов опыта: 0 — мелкий, 1 — средний, 2 — крупный */
+const XPS=[];
+/* Кристалл опыта: гранёный камень с бликом, рисуется один раз на ценность (синий/зелёный/золотой) */
+function xpSprite(t){ if(XPS[t]&&XPS[t].sc===sprScale())return XPS[t]; const R=[4.6,6,8][t];
+  const [l,d,h,gl]=[['#7fd0ff','#2f7fd0','#dff4ff','rgba(90,180,255,.55)'],['#7dffa6','#1f9a52','#e6ffee','rgba(80,230,140,.55)'],['#ffd36a','#c27a12','#fff3c8','rgba(255,190,80,.6)']][t];
+  return XPS[t]=makeSprite(Math.ceil(R*2.7),c=>{ const g=ctx.createRadialGradient(c,c,0,c,c,R*2.6); g.addColorStop(0,gl); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c,c,R*2.6,0,TAU); ctx.fill();
+    const top=[c,c-R*1.25], L=[c-R*.85,c-R*.15], Rr=[c+R*.85,c-R*.15], bot=[c,c+R*1.25], ml=[c-R*.35,c-R*.15], mr=[c+R*.35,c-R*.15];
+    const poly=(pts,f)=>{ ctx.fillStyle=f; ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let k=1;k<pts.length;k++) ctx.lineTo(pts[k][0],pts[k][1]); ctx.closePath(); ctx.fill(); };
+    poly([top,L,bot],d); poly([top,Rr,bot],l); poly([top,ml,mr],h); poly([L,ml,bot],l); poly([mr,Rr,bot],d);
+    ctx.fillStyle='#fff'; ctx.globalAlpha=.9; ctx.beginPath(); ctx.arc(c-R*.18,c-R*.6,R*.16,0,TAU); ctx.fill(); ctx.globalAlpha=1; }); }
+/* Звон кристалла — «волшебный хрусталь». Каждый голос: удар-перезвон (FM: яркая атака, тает в чистый тон),
+   лёгкое биение двух близких тонов (мерцание) и отзвук через общий хвост-реверберацию.
+   Серия подборов идёт вверх по нотам мажорного аккорда в среднем регистре (≈1050–1570 Гц) и держится там,
+   пауза 0,5 с — сброс. Громкость ровная. Золотой — раскрывающийся аккорд с долгим хвостом.
+   XPSND: 0 — хрусталь (основной), 1 — волшебная пыль (с искрами-арпеджио), 2 — ветряные колокольчики. */
+let XPSND=2;   /* автор выбрал «ветряные колокольчики» */ const XPC={n:0,t:0,last:0};
+function xpVerb(){ if(AC._xpv)return AC._xpv;
+  const len=Math.floor(AC.sampleRate*1.4), b=AC.createBuffer(2,len,AC.sampleRate);
+  for(let c=0;c<2;c++){ const d=b.getChannelData(c); let lp=0; for(let i=0;i<len;i++){ const k=i/len; lp=lp*.55+(Math.random()*2-1)*.45; d[i]=lp*Math.pow(1-k,3.2); } }
+  const cv=AC.createConvolver(); cv.buffer=b; const g=AC.createGain(); g.gain.value=.55; cv.connect(g); g.connect(MASTER);
+  return AC._xpv=cv; }
+function xpVoice(f,v,dl,dur,wet,idx){ const t=AC.currentTime+(dl||0), out=AC.createGain();
+  out.gain.setValueAtTime(0,t); out.gain.linearRampToValueAtTime(v,t+.004); out.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  out.connect(MASTER); if(wet){ const sg=AC.createGain(); sg.gain.value=wet; out.connect(sg); sg.connect(xpVerb()); }
+  for(const dt of [0,7]){ const o=AC.createOscillator(), m=AC.createOscillator(), mg=AC.createGain(), og=AC.createGain();
+    o.frequency.value=f; o.detune.value=dt; m.frequency.value=Math.min(f*3.5,AC.sampleRate*.45);
+    mg.gain.setValueAtTime(f*(idx||1.6),t); mg.gain.exponentialRampToValueAtTime(f*.02,t+.18);
+    m.connect(mg); mg.connect(o.frequency); og.gain.value=dt?.45:.55; o.connect(og); og.connect(out);
+    o.start(t); m.start(t); o.stop(t+dur+.05); m.stop(t+dur+.05); } }
+function xpGlint(v,dl){ const t=AC.currentTime+(dl||0), n=Math.floor(AC.sampleRate*.03), b=AC.createBuffer(1,n,AC.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,4);
+  const s=AC.createBufferSource(); s.buffer=b; const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=7000;
+  const g=AC.createGain(); g.gain.value=v; s.connect(hp); hp.connect(g); g.connect(MASTER); g.connect(xpVerb()); s.start(t); }
+function xpNote(f,v,kind){
+  if(kind===1){ xpVoice(f,v,0,.32,.5,1.2); for(let k=0;k<3;k++) xpVoice(f*[2,2.52,3][k],v*.16,.025*(k+1),.14,.6,.6); return; }
+  if(kind===2){ const P=[1,2.76,5.4]; xpVoice(f,v*.8,0,.5,.45,.5); xpVoice(f*2.76,v*.22,0,.28,.45,.3); xpVoice(f*5.4,v*.08,0,.12,.4,.2); return; }
+  xpVoice(f,v,0,.38,.42,1.8); xpGlint(v*.35,0); }
+function xpChime(tier){ if(!AC||muted)return; const now=performance.now();
+  if(now-XPC.t>500) XPC.n=0; XPC.t=now; const v0=.03*SNDK;
+  if(tier===2){ const f0=784; [1,1.26,1.5,2].forEach((r,k)=>xpVoice(f0*r,v0*(k?.6:1),k*.045,.9,.6,1.4)); xpGlint(v0*.5,.05); XPC.n++; return; }
+  if(now-XPC.last<38){ XPC.n++; return; } XPC.last=now;
+  let f;
+  if(XPSND===2){ const CH=[0,4,7,9,12]; f=1047*Math.pow(2,CH[Math.floor(Math.random()*CH.length)]/12)*(XPC.n++>3?1.0:1); }
+  else { const st=Math.min(XPC.n++,5), CH=[0,4,7,4,7,7]; f=1047*Math.pow(2,CH[st]/12); }
+  const v=v0*Math.pow(1047/f,.35); xpNote(f,v,XPSND); if(tier===1) xpVoice(f*1.5,v*.4,.03,.3,.5,1); }
 function makeSprite(half,drawFn){
   const sc=sprScale(), px=Math.max(2,Math.ceil(half*2*sc));
   const c=document.createElement('canvas'); c.width=c.height=px;
@@ -6695,6 +6781,13 @@ function poseCanvas(half,sc){
   const c=document.createElement('canvas'); c.width=c.height=Math.max(2,Math.ceil(half*2*sc));
   return {c,g:g2d(c),half,sc,key:null}; }
 function poseRelease(e){ if(e._pc){ if(POSE_FREE.length<160) POSE_FREE.push(e._pc); e._pc=null; } }
+/* богомол едва виден (32%), ближе 160 к герою проступает до 60%. На бегу за ним тянутся 3 тени-двойника */
+function drawMantis(e,T,LOD){ const dd=Math.hypot(e.x-W.p.x,e.y-W.p.y), a0=e.flash>0?.85:(.32+.28*clamp(1-(dd-60)/100,0,1));
+  const one=()=>{ if(OPT.efps===60||OPT.rmode===2) drawEnemy(e,T,LOD); else drawEnemyPosed(e,T,LOD); };
+  ctx.save();
+  if(e.sp>110&&!LOD){ const v=Math.hypot(e.vx||0,e.vy||0)||1, ux=(e.vx||0)/v, uy=(e.vy||0)/v, x0=e.x, y0=e.y;
+    for(let k=3;k>=1;k--){ ctx.globalAlpha=a0*.3/k; e.x=x0-ux*k*e.r*.85; e.y=y0-uy*k*e.r*.85; try{ one(); } finally{ e.x=x0; e.y=y0; } } }
+  ctx.globalAlpha=a0; one(); ctx.restore(); }
 function drawEnemyPosed(e,T,LOD){
   const sc=sprScale(), half=Math.ceil((e.r*2.9+18)/4)*4;
   let L=e._pc; if(!L||L.half!==half||L.sc!==sc){ poseRelease(e); L=e._pc=poseCanvas(half,sc); }
@@ -7017,7 +7110,42 @@ function drawEnemy(e,T,LOD,ally){
   const legs=!LOD;
   ctx.save(); ctx.translate(x,y-hop);
 
-  if(e.form==='crawler'){
+  /* На сложности 2+ ползун и бегун — «стеклянные» усиленные виды: ползун — клещ, бегун — водомерка.
+     Цвет с каждой сложностью грознее: 2 — холодное стекло, 3 — янтарь/огонь, 4+ — кровавый. */
+  const gv=!ally&&W&&(W.floor||1)>=2&&(e.form==='crawler'||e.form==='hound')&&(e.type==='crawler'||e.type==='sprinter');
+  if(gv){ const fl=Math.min(4,W.floor), G=e.form==='crawler'
+      ?{2:['#9fd8ad','#2f5a3a','#d6ff7a'],3:['#e2bc5c','#5e4314','#ffe08a'],4:['#e0605e','#5a1616','#ffd24a']}[fl]
+      :{2:['#8fd0ee','#24506a','#e8fbff'],3:['#ff9a4a','#6a3312','#fff0b0'],4:['#ff4a6a','#5e0f1e','#ffe3a0']}[fl];
+    const [rc,dc,ec]=G, H=hex2(flash?(e.flashCol||'#ffffff'):rc), ga=a=>'rgba('+H[0]+','+H[1]+','+H[2]+','+a+')', D=hex2(dc), da=a=>'rgba('+D[0]+','+D[1]+','+D[2]+','+a+')';
+    if(e.form==='crawler'){   /* стеклянный клещ */
+      if(legs){ ctx.strokeStyle=ga(.75); ctx.lineWidth=2.4; ctx.lineCap='round';
+        for(let i=0;i<6;i++){ const sd=i<3?-1:1, k=i%3, a=dir+sd*(.8+k*.55)+Math.sin(w*4+i)*.22;
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(Math.cos(a)*r*.95,Math.sin(a)*r*.95-2,Math.cos(a)*r*1.45,Math.sin(a)*r*1.35+Math.abs(Math.sin(w*4+i))*2); ctx.stroke(); }
+        ctx.lineCap='butt'; }
+      ctx.fillStyle=ga(.42); blobPath(0,0,r*1.02,T,ph,.05); ctx.fill();
+      ctx.strokeStyle=ga(.95); ctx.lineWidth=1.6; ctx.stroke();
+      ctx.strokeStyle=da(.7); ctx.lineWidth=1.1;
+      for(let i=0;i<5;i++){ const a=i*1.26+.3+ph; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(Math.cos(a+.4)*r*.4,Math.sin(a+.4)*r*.4,Math.cos(a)*r*.82,Math.sin(a)*r*.82); ctx.stroke(); }
+      const cx0=-Math.cos(dir)*r*.1, cy0=-Math.sin(dir)*r*.1;
+      ctx.fillStyle=da(.92); circle(cx0,cy0,r*.36); ctx.fill();
+      ctx.fillStyle=ec; ctx.globalAlpha*=.45; circle(cx0,cy0,r*.18); ctx.fill(); ctx.globalAlpha/=.45;
+      ctx.fillStyle='rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(-r*.35,-r*.42,r*.3,r*.13,-.6,0,TAU); ctx.fill();
+      ctx.fillStyle=ec; for(const sd of [1,-1]){ circle(Math.cos(dir)*r*.62+Math.cos(dir+1.57)*r*.18*sd,Math.sin(dir)*r*.62+Math.sin(dir+1.57)*r*.18*sd,r*.12); ctx.fill(); }
+    } else {                  /* водомерка */
+      ctx.rotate(dir);
+      if(legs){ ctx.strokeStyle=ga(.7); ctx.lineWidth=1.7; ctx.lineCap='round';
+        for(let i=0;i<6;i++){ const sd=i%2?1:-1, row=Math.floor(i/2)-1, wv=Math.sin(w*4+i*1.3)*.25;
+          const a=sd*(1.25-row*.55)+wv*sd, kx=Math.cos(a)*r*1.1, ky=Math.sin(a)*r*1.1;
+          ctx.beginPath(); ctx.moveTo(row*r*.35,0); ctx.lineTo(kx+row*r*.2,ky); ctx.lineTo(kx*1.9+row*r*.1,ky*1.6); ctx.stroke(); }
+        ctx.lineCap='butt'; }
+      ctx.fillStyle=ga(.4); ctx.beginPath(); ctx.ellipse(0,0,r*1.15,r*.55,0,0,TAU); ctx.fill();
+      ctx.strokeStyle=ga(.95); ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle=ga(.32); circle(r*1.05,0,r*.4); ctx.fill(); ctx.strokeStyle=ga(.85); ctx.stroke();
+      ctx.fillStyle=da(.85); ctx.beginPath(); ctx.ellipse(-r*.1,0,r*.55,r*.26,0,0,TAU); ctx.fill();
+      ctx.fillStyle=ec; ctx.globalAlpha*=.55; ctx.beginPath(); ctx.ellipse(-r*.1,0,r*.32,r*.14,0,0,TAU); ctx.fill(); ctx.globalAlpha/=.55;
+      ctx.fillStyle=ec; circle(r*1.22,-r*.18,r*.12); ctx.fill(); circle(r*1.22,r*.18,r*.12); ctx.fill(); }
+  }
+  else if(e.form==='crawler'){
     if(legs){ ctx.strokeStyle=dark; ctx.lineWidth=3.4; ctx.lineCap='round';
       for(let i=0;i<4;i++){ const s=i<2?-1:1, k=(i%2)?0:Math.PI;
         const a=dir+(i<2?-.9:.9)+Math.sin(w*3+k)*.28;
@@ -7190,6 +7318,25 @@ function drawEnemy(e,T,LOD,ally){
     for(let i=-1;i<=1;i+=2){ ctx.beginPath(); ctx.moveTo(r*.8,i*r*.16);
       ctx.lineTo(r*1.15,i*r*.34); ctx.stroke(); }
     ctx.lineCap='butt'; ctx.restore(); }
+  else if(e.form==='mantis'){
+    ctx.rotate(dir);
+    if(legs){ ctx.strokeStyle=dark; ctx.lineWidth=2; ctx.lineCap='round';
+      for(let i=0;i<4;i++){ const s=i%2?1:-1, b=i<2?-.35:.25, a=s*(1.6+(i<2?.25:-.1))+Math.sin(w*4+i*1.7)*.2*s;
+        ctx.beginPath(); ctx.moveTo(b*r,0); ctx.lineTo(b*r+Math.cos(a)*r*1.3,Math.sin(a)*r*1.3); ctx.stroke(); }
+      ctx.lineCap='butt'; }
+    /* передние косы */
+    ctx.strokeStyle=col; ctx.lineWidth=2.6; ctx.lineCap='round';
+    for(const sd of [-1,1]){ const sw=Math.sin(w*4+(sd>0?0:1.6))*.06;
+      ctx.beginPath(); ctx.moveTo(r*.55,sd*r*.18); ctx.lineTo(r*.95,sd*r*(.55+sw)); ctx.stroke();
+      ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(r*.9,sd*r*(.6+sw)); ctx.quadraticCurveTo(r*1.45,sd*r*(.62+sw),r*1.7,sd*r*.18);
+      ctx.quadraticCurveTo(r*1.35,sd*r*.42,r*.98,sd*r*(.46+sw)); ctx.closePath(); ctx.fill(); }
+    ctx.lineCap='butt';
+    ctx.fillStyle=dark; ctx.beginPath(); ctx.ellipse(-r*.35,0,r*.9,r*.5,0,0,TAU); ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(-r*.4,-r*.05,r*.72,r*.36,0,0,TAU); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.14)'; ctx.beginPath(); ctx.ellipse(-r*.55,-r*.16,r*.38,r*.13,0,0,TAU); ctx.fill();
+    ctx.fillStyle=dark; ctx.beginPath(); ctx.ellipse(r*.5,0,r*.38,r*.25,0,0,TAU); ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(r*1.15,0); ctx.lineTo(r*.8,-r*.3); ctx.lineTo(r*.8,r*.3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=eye; circle(r*.88,-r*.2,r*.11); ctx.fill(); circle(r*.88,r*.2,r*.11); ctx.fill(); }
   else if(e.form==='stalker'){
     const crouch=e.lp?1:.72;
     if(legs){ ctx.strokeStyle=dark; ctx.lineWidth=2.6; ctx.lineCap='round';
@@ -7963,8 +8110,10 @@ let TICK=0,running=false,paused=false,last=0,acc=0,objTick=0;
 /* настройки игрока + автоподстройка качества под частоту кадров */
 const OPT={shake:1,blood:1,minimap:1,quality:'auto',stick:1,aimAssist:1,volM:1,volMu:1,volS:1,fps:60,efps:15};
 try{ const o=JSON.parse(localStorage.getItem('dustlineOpt')||'{}'); Object.assign(OPT,o);
-  if(!o.aimV){ OPT.aimAssist=1; OPT.aimV=1; } }catch(e){}   /* автоприцел теперь включён по умолчанию — и у тех, кто играл раньше */
+  if(!o.aimV){ OPT.aimAssist=1; OPT.aimV=1; }
+  if(o.rmode===undefined) OPT.rmode=TOUCH_DEV?1:0; }catch(e){}   /* телефоны и планшеты: картинки тварей в обычной памяти — замер автора: 20 → 40–50 к/с */   /* автоприцел теперь включён по умолчанию — и у тех, кто играл раньше */
 if(OPT.fps!==30&&OPT.fps!==60) OPT.fps=30;
+if(OPT.rmode===undefined) OPT.rmode=TOUCH_DEV?1:0;
 OPT.efps=15;   /* поза врагов — всегда 15 кадров; переключатель убран после тестов автора */   /* было сохранено 40 — такого режима больше нет */
 function saveOpt(){ try{ localStorage.setItem('dustlineOpt',JSON.stringify(OPT)); }catch(e){} }
 /* три размера джойстика: мелкий точнее, крупный отзывчивее */
