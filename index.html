@@ -682,6 +682,7 @@ body.touch #bl{display:none}
 </style>
 <div id="rot" hidden><div><i></i><b></b><span></span></div></div>
 <div id="infoPop" hidden><b id="infoTitle"></b><span id="infoText"></span></div>
+<div id="perfBox" hidden style="position:fixed;left:50%;top:4px;transform:translateX(-50%);z-index:8;font:600 11px/1.3 monospace;color:#9fe8ff;background:rgba(0,0,0,.6);padding:3px 8px;border-radius:6px;pointer-events:none;white-space:nowrap"></div>
 <div id="lvlBtn" hidden><span id="lvlBtnT">Новый уровень</span> <b>+1</b></div>
 <div id="tc" hidden>
   <div id="tcStick"><div id="tcRing"></div><div id="tcNub"></div></div>
@@ -724,10 +725,15 @@ const TAU=Math.PI*2, STEP=1/60;
    и картинку сплющивало. Буфер переназначаем только при реальном изменении —
    само переназначение стирает холст, отсюда было мерцание под меню. */
 let CW0=0, CH0=0;
-let DPRK=1;            /* множитель плотности: снижается, когда кадр не вывозит */
+let DPRK=1;
+const TOUCH_DEV=(navigator.maxTouchPoints||0)>0&&matchMedia('(pointer: coarse)').matches;            /* множитель плотности: снижается, когда кадр не вывозит */
 function resize(){
-  DPR=Math.min(devicePixelRatio||1,2)*DPRK;
   const cw=Math.max(1,cv.clientWidth||innerWidth), ch=Math.max(1,cv.clientHeight||innerHeight);
+  /* На телефонах и планшетах холст не больше ~1,1 млн точек: у планшета 2000×1200 их было 2,4 млн,
+     и видеокарта не успевала их закрашивать. Картинка чуть мягче, кадр — в разы легче. */
+  let dmax=Math.min(devicePixelRatio||1,2);
+  if(TOUCH_DEV) dmax=Math.min(dmax,Math.sqrt(1.1e6/(cw*ch)));
+  DPR=Math.max(.5,dmax*DPRK);
   /* чем ниже экран, тем дальше камера: иначе враг сверху и снизу появляется
      уже вплотную и среагировать нельзя */
   ZOOM=Math.max(.70,Math.min(1,ch/640));
@@ -1166,7 +1172,7 @@ const BIOMES={
 
 /* =========================================================== МИССИИ */
 const MISSIONS=[
- {id:'i1',bake:1,name:['Выгрузка','Unloading'],biome:'asphalt',elite:0,pool:['crawler'],
+ {id:'i1',bake:1,simpleAi:1,name:['Выгрузка','Unloading'],biome:'asphalt',elite:0,pool:['crawler'],
   brief:['Площадка выгрузки. Здесь водятся только ползуны.','The unloading pad. Nothing here but crawlers.'],
   planet:["КЕРИД-4","KERID-4"],story:["Корпус ещё пахнет заводской смазкой. Диспетчер держит вас на площадке выгрузки, пока приборы не прогреются: тут водятся только ползуны — медленные, тупые, идут строго на шум двигателя. Разомнитесь на них.","The hull still smells of factory grease. Control keeps you on the unloading pad until the instruments warm up: only crawlers live here — slow, stupid, drawn straight to engine noise. Warm up on them."],beats:[[20,["ДИСПЕТЧЕР: ПОЛЗУНЫ ИДУТ НА ЗВУК","CONTROL: CRAWLERS TRACK YOUR NOISE"]],[60,["ДИСПЕТЧЕР: ПРИБОРЫ В НОРМЕ","CONTROL: INSTRUMENTS NOMINAL"]]],
   goals:[{t:'kill',n:200},{t:'survive',n:90}]},
@@ -1259,6 +1265,7 @@ function newWorld(cls,mid,seed){
     eliteN:0,eliteT:100,   /* первая элита (Страж) — на 1:40, а не на 50-й секунде */
     eliteLeft:(M.elite||0),relicDropped:false,
     relics:relicsOf(cls),lastTi:0,lastAi:0,
+    simpleAi:!!M.simpleAi,
     floor:M.endless?1:curFloor(), floorK:M.endless?1:floorK(curFloor()),
     infD:((progress.inf&&progress.inf[cls])||{}).idmg||0, infR:((progress.inf&&progress.inf[cls])||{}).ireg||0,
     goals:M.goals.map(g=>({t:g.t,n:SCALE_GOALS[g.t]&&!M.endless?Math.round(g.n*floorK(curFloor())):g.n,cur:0,done:false,req:g.req,mh:g.mh}))};
@@ -3553,7 +3560,7 @@ function update(dt){
     if(e.slime>0)e.slime-=dt;
     /* затишье: все, кто дальше 300 (не элиты, не стража, не отряды), отходят — вплотную добиваешь сам */
     if(W.calm>0&&!e.boss&&!e.elite&&!e.guardOf&&!e.sq&&!e.trophy){ const cx=e.x-p.x, cy=e.y-p.y, cd=Math.hypot(cx,cy)||1;
-      if(cd>300){ const back=e.sp*.45*dt; e.x+=cx/cd*back; e.y+=cy/cd*back; e.dir=Math.atan2(-cy,-cx); e.walk+=dt*.15; collideObst(e,e.r); continue; } }
+      if(cd>300){ const back=e.sp*.45*dt; e.x+=cx/cd*back; e.y+=cy/cd*back; e.dir=Math.atan2(cy,cx);   /* уходят мордой вперёд, а не пятятся */ e.walk+=dt*.15; collideObst(e,e.r); continue; } }
     let tx=p.x,ty=p.y,tgt=null,tgtR=p.r,isBeacon=false,bldTgt=null;
     for(const al of W.allies) if(Math.hypot(al.x-e.x,al.y-e.y)<170){ tx=al.x;ty=al.y;tgt=al;tgtR=al.r;break; }
     if(!tgt&&W.cores.length){
@@ -3683,10 +3690,14 @@ function update(dt){
         fx.slime(e.x-Math.cos(e.face)*e.r,e.y-Math.sin(e.face)*e.r,'#9ae05a',12); S.hive(); } } }
     else {
       /* охота: цель берётся с упреждением, стая расходится веером и сжимает кольцо */
+      /* Простое поведение (проба на «Выгрузке»): все идут прямо на цель — без упреждения, охвата, обходов
+         и поиска прохода. Столкновения с камнями, вынос застрявших за экраном и закапывание остаются. */
+      let sp2=e.sp, mx=dx/d, my=dy/d;
+      if(!W.simpleAi){
       const lead=clamp(d/560,0,1)*.5;
       const px=tx+(tgt?0:p.vx)*lead, py=ty+(tgt?0:p.vy)*lead;
       const ang0=Math.atan2(py-e.y,px-e.x);
-      let sp2=e.sp, want=0, tang=0, spreadK=clamp(d/430,0,1);
+      let want=0, tang=0, spreadK=clamp(d/430,0,1);
       e.dashCd-=dt; if(e.dashT>0)e.dashT-=dt;
       if(e.pers==='flank'){ want=e.orbit; tang=.95;
         if(e.dashCd<=0&&d<e.orbit*1.35){ e.dashT=e.dashDur=.9; e.dashCd=rr(3.5,6.5); } }
@@ -3701,7 +3712,7 @@ function update(dt){
       if(e.dashT>0){ const k=1-e.dashT/e.dashDur;
         want=0; tang*=.25; sp2*=1+Math.sin(k*Math.PI)*1.5; }
       const radial=clamp((d-want)/90,-1,1);
-      let mx=Math.cos(ang0)*radial, my=Math.sin(ang0)*radial;
+      mx=Math.cos(ang0)*radial; my=Math.sin(ang0)*radial;
       if(tang){ const ta=ang0+Math.PI/2*e.fs, wob=tang*(.75+Math.sin(W.t*.9+e.ph)*.25);
         mx+=Math.cos(ta)*wob; my+=Math.sin(ta)*wob; }
       /* охват: далеко расходятся в стороны, у цели сходятся */
@@ -3766,6 +3777,7 @@ function update(dt){
         /* ведём вдоль преграды, а не в неё */
         mx+=(-qdy/qd)*side*push*2.4; my+=(qdx/qd)*side*push*2.4;
         if(qd<sg.r+e.r+12){ mx-=qdx/qd*1.1; my-=qdy/qd*1.1; }
+      }
       }
       /* плавный прыжок вместо резкого выпада */
       if(e.lurch){ e.lt-=dt;
@@ -5042,7 +5054,9 @@ const AIR=[];
 function initAir(){ AIR.length=0; for(let i=0;i<110;i++) AIR.push({x:vr(0,1),y:vr(0,1),z:vr(.3,1),s:vr(.6,2.4),p:vr(0,TAU)}); }
 
 const cam={x:0,y:0};
+let POSE_BUDGET=12;
 function render(){
+  POSE_BUDGET=TOUCH?10:24;   /* сколько поз тварей можно перерисовать за кадр */
   ctx.setTransform(DPR*ZOOM,0,0,DPR*ZOOM,0,0);
   if(!W){ ctx.fillStyle='#101216'; ctx.fillRect(0,0,VW,VH); return; }
   const B=BIOMES[W.biome],p=W.p,T=W.t,C=CLASSES[W.cls];
@@ -5056,7 +5070,7 @@ function render(){
   { const mk=motherCamK(); if(mk>0){ ctx2=lerp(ctx2,W.motherEv.x,mk); cty=lerp(cty,W.motherEv.y,mk); } }   /* показываем, как вылезает матка */
   cam.x=lerp(cam.x,ctx2,paused?.04:.055); cam.y=lerp(cam.y,cty,paused?.04:.055);
   const ox=Math.round(-cam.x+VW/2+vr(-SHK,SHK)), oy=Math.round(-cam.y+VH/2+vr(-SHK,SHK));
-  ctx.fillStyle=B.ground; ctx.fillRect(0,0,VW,VH);
+  if(!groundPat){ ctx.fillStyle=B.ground; ctx.fillRect(0,0,VW,VH); }   /* узор земли и так закрывает весь экран — лишняя заливка убрана */
   ctx.save(); ctx.translate(ox,oy);
   const LB=cam.x-VW/2-140,RB=cam.x+VW/2+140,UB=cam.y-VH/2-140,DB=cam.y+VH/2+140;
   const vis=(x,y,r)=>x>LB-r&&x<RB+r&&y>UB-r&&y<DB+r;
@@ -6684,8 +6698,11 @@ function poseRelease(e){ if(e._pc){ if(POSE_FREE.length<160) POSE_FREE.push(e._p
 function drawEnemyPosed(e,T,LOD){
   const sc=sprScale(), half=Math.ceil((e.r*2.9+18)/4)*4;
   let L=e._pc; if(!L||L.half!==half||L.sc!==sc){ poseRelease(e); L=e._pc=poseCanvas(half,sc); }
-  const key=Math.floor(T*15+(e.ph||0)*2.3)+'|'+(e.flash>0?(e.flashCol||'w'):'')+'|'+Math.round((e.dir||0)/.14)+'|'+(e.infected>0?1:0);
-  if(L.key!==key){ L.key=key; const g=L.g;
+  const key=Math.floor(T*12+(e.ph||0)*2.3)+'|'+(e.flash>0?(e.flashCol||'w'):'')+'|'+Math.round((e.dir||0)/.14)+'|'+(e.infected>0?1:0);
+  /* Бюджет перерисовок поз за кадр: каждая перерисовка — это рисование твари и загрузка картинки в видеокарту.
+     Без предела при 100+ тварях это сотни загрузок в секунду — на планшетах кадр падал до 15.
+     Сверх бюджета тварь показывает прежнюю позу (вспышка от удара — всегда без очереди). */
+  if(L.key!==key&&(L.key===null||POSE_BUDGET>0||e.flash>0)){ POSE_BUDGET--; L.key=key; const g=L.g;
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,L.c.width,L.c.height); g.setTransform(sc,0,0,sc,0,0);
     const saved=ctx, ex=e.x, ey=e.y; ctx=g; e.x=half; e.y=half;
     try{ drawEnemy(e,T,LOD); } finally{ e.x=ex; e.y=ey; ctx=saved; } }
@@ -7724,8 +7741,9 @@ function drawMinimap(p){
      Их положение читаем из разметки, иначе при любой правке стилей снова наедут. */
   let BOT = TOUCH ? (innerHeight<400 ? 170 : 205) : 124;
   const bt=el('tcBtns');
-  if(TOUCH && bt && bt!==NULLEL){ const rb=bt.getBoundingClientRect();
-    if(rb.height>2) BOT = Math.max(60, (innerHeight - rb.top)/ZOOM + 12); }
+  /* положение кнопок меряем раз в полсекунды (HUDR.bt), а не каждый кадр: замер заставлял браузер пересчитывать вёрстку */
+  if(TOUCH && bt && bt!==NULLEL){ if(!HUDR.btT||Math.abs(W.t-HUDR.btT)>.5){ HUDR.btT=W.t; HUDR.btTop=bt.getBoundingClientRect(); }
+    const rb=HUDR.btTop; if(rb&&rb.height>2) BOT = Math.max(60, (innerHeight - rb.top)/ZOOM + 12); }
   let S2=Math.min(132, Math.round(Math.min(VH*.34, VW*.20)));
   /* размеры кнопок и окна заданий меряем раз в полсекунды: замер каждый кадр
      заставляет браузер пересчитывать вёрстку */
@@ -7861,7 +7879,7 @@ function syncHud(){ if(!W)return; const p=W.p;
   }
   const C=CLASSES[W.cls];
   const k1=clamp(1-p.ab1Cd/(p.ab1Max*mCool()),0,1), k2=clamp(1-p.ab2Cd/(p.ab2Max*mCool()),0,1);
-  setP('r1','--p',Math.round(k1*100)+'%'); setP('r2','--p',Math.round(k2*100)+'%');
+  setP('r1','--p',Math.round(k1*25)*4+'%'); setP('r2','--p',Math.round(k2*25)*4+'%');   /* шагами по 4%: меньше перерисовок кнопок */
   setS('g1','color',k1>=1?C.color:'#575e69'); setS('g2','color',k2>=1?C.color:'#575e69');
   setT('c1',p.ab1Cd>.15?Math.ceil(p.ab1Cd):'');
   setT('c2',p.ab2Cd>.15?Math.ceil(p.ab2Cd):'');
@@ -7968,7 +7986,7 @@ function quality(raw){
   else QUAL=FT>34?2:(FT>23?1:0);
   /* холст — самая дорогая часть кадра: на слабом кадре рисуем его крупнее пикселем.
      Переключаем с запасом и не чаще раза в секунду, чтобы не дёргалось. */
-  const want=QUAL===2?.68:(QUAL===1?.85:1);
+  const want=QUAL===2?.6:(QUAL===1?.8:1);
   QT=(QT||0)+raw;
   if(want!==DPRK&&QT>1){ QT=0; DPRK=want; resize(); }
 }
@@ -7983,6 +8001,11 @@ function logErr(tag,e){
   else if(ERRN===4) console.error(tt('[DUSTLINE] дальнейшие сообщения подавлены','[DUSTLINE] further messages suppressed'));
 }
 let lastDraw=0, HK_TICK=0;
+/* Замер для проверки на устройстве: кадры в секунду и сколько миллисекунд уходит на логику, рисование и панель.
+   Включается кнопкой «ЗАМЕР» в паузе. */
+const PERF={u:0,r:0,h:0};
+function drawPerf(){ const P=el('perfBox'); if(!P||P===NULLEL)return; PERF.k=(PERF.k||0)+1; if(PERF.k%10)return;
+  P.hidden=false; P.textContent=`${FPS} к/с · логика ${PERF.u.toFixed(1)} · рисование ${PERF.r.toFixed(1)} · панель ${PERF.h.toFixed(1)} мс · врагов ${W.enemies.length} · холст ${cv.width}×${cv.height} · поз/кадр ${Math.max(0,(TOUCH?10:24)-POSE_BUDGET)}`; }
 function frame(ts){ requestAnimationFrame(frame);
   /* В бою — столько кадров, сколько выбрано в паузе (60/40/30).
      На паузе, в окнах улучшений и в меню картинка стоит под панелью — раньше она
@@ -8000,12 +8023,14 @@ function frame(ts){ requestAnimationFrame(frame);
     acc+=Math.min(raw||0,.25); let n=0;
     /* догон ограничен тремя шагами, остаток отбрасываем: пять шагов на просевшем
        кадре делали следующий кадр ещё тяжелее — игра сваливалась в штопор */
+    const tU=performance.now();
     while(acc>=STEP&&n<3){ acc-=STEP; TICK++;
       try{ update(STEP); }catch(e){ logErr('update',e); } n++; }
+    PERF.u=PERF.u*.9+(performance.now()-tU)*.1;
     if(acc>STEP*3) acc=STEP;
     if(pendingRelic>0&&!el('relicScreen').classList.contains('on')){ paused=true; openRelic(); }
     /* окно прокачки больше не всплывает само — игрок открывает его кнопкой */
-    try{ syncHud(); }catch(e){ logErr('hud',e); }
+    { const tH=performance.now(); try{ syncHud(); }catch(e){ logErr('hud',e); } PERF.h=PERF.h*.9+(performance.now()-tH)*.1; }
     objTick+=raw; if(objTick>.35){ objTick=0; try{ renderObjectives(); }catch(e){ logErr('objectives',e); } }
   }
   /* качество судим по запасу кадра: при ограничении в 30 кадр длиннее по замыслу,
@@ -8021,7 +8046,8 @@ function frame(ts){ requestAnimationFrame(frame);
   try{ tcSync(); }catch(e){}
   try{ PLATFORM.tick(); }catch(e){}
   if(planetActive){ try{ drawPlanetFrame(Math.min(raw||0,.05)); }catch(e){ logErr('planet',e); } }
-  try{ render(); }catch(e){ logErr('render',e); } }
+  { const tR=performance.now(); try{ render(); }catch(e){ logErr('render',e); } PERF.r=PERF.r*.9+(performance.now()-tR)*.1;
+    if(OPT.perf&&busy) drawPerf(); else if(!el('perfBox').hidden) el('perfBox').hidden=true; } }
 let RSZ=0;
 /* ===================================================== ПЛОЩАДКИ (Яндекс Игры)
    Слой включается, только если игра открыта на Яндекс Играх (или с ?ysdk=1 для проверки).
@@ -8733,6 +8759,7 @@ function renderPause(){
     `<button class="tg on" data-k="fps">${U('optFps')}: ${OPT.fps||60}</button>`+
     (TOUCH?`<button class="tg on" data-k="stick">${U('optStick')}: ${[U('stickS'),U('stickM'),U('stickL')][OPT.stick]}</button>`:'')+
     (TOUCH?`<button class="tg ${OPT.aimAssist?'on':''}" data-k="aimAssist">${U('optAim')}</button>`:'')+
+    `<button class="tg ${OPT.perf?'on':''}" data-k="perf">${tt('ЗАМЕР','PERF')}</button>`+
     ((document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen)?`<button class="tg ${isFull()?'on':''}" data-k="full">${tt('ВО ВЕСЬ ЭКРАН','FULLSCREEN')}</button>`:'')+
     `<div class="fpsline">FPS ${FPS} · ${W.enemies.length} ${tt('целей','targets')}</div>`;
   el('pauseOpt').querySelectorAll('.tg').forEach(n=>n.addEventListener('click',()=>{
