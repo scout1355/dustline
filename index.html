@@ -5436,7 +5436,7 @@ function render(){
     if(e.bur>0&&e.burTo&&!burSame(e)&&vis(e.burTo.x,e.burTo.y,e.r*2)) drawRise(e,T,e.burTo.x,e.burTo.y);   /* где вылезет — земля уже вспучивается */
     if(!vis(e.x,e.y,e.r+20)){ if(e._pc) poseRelease(e); continue; }   /* ушёл за экран — картинку в запас */
     if(e.bur>0){ if(burSame(e)) drawRise(e,T,e.x,e.y); else drawMound(e,T); continue; }
-    if(OPT.efps===60||e.boss||e.elite) drawEnemy(e,T,LOD); else drawEnemyPosed(e,T,LOD);
+    if(OPT.efps===60||OPT.rmode===2||e.boss||e.elite) drawEnemy(e,T,LOD); else drawEnemyPosed(e,T,LOD);
     /* щит босса из «Выживания»: голубая оболочка, тускнеет вместе с запасом щита */
     if(e.armSh>0){ const k=e.armSh/e.armShMax, rr5=e.r*1.32;
       softGlow(e.x,e.y,rr5*1.5,'rgba(127,208,255,.6)',.25+.3*k);
@@ -6599,7 +6599,7 @@ function lowFps(o,fps,stateKey,x0,y0,w,h,drawFn){
   const sc=sprScale(), key=Math.floor(W.t*fps)+'|'+stateKey+'|'+sc;
   let L=o._lf;
   if(!L||L.w!==w||L.h!==h){ const c=document.createElement('canvas');
-    c.width=Math.max(2,Math.ceil(w*sc)); c.height=Math.max(2,Math.ceil(h*sc)); L=o._lf={c,g:c.getContext('2d'),w,h,key:null}; }
+    c.width=Math.max(2,Math.ceil(w*sc)); c.height=Math.max(2,Math.ceil(h*sc)); L=o._lf={c,g:g2d(c),w,h,key:null}; }
   if(L.key!==key){ L.key=key; const g=L.g;
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,L.c.width,L.c.height);
     g.setTransform(L.c.width/w,0,0,L.c.height/h,-x0*L.c.width/w,-y0*L.c.height/h);
@@ -6693,7 +6693,7 @@ const POSE_FREE=[];
 function poseCanvas(half,sc){
   for(let i=POSE_FREE.length-1;i>=0;i--){ const L=POSE_FREE[i]; if(L.half===half&&L.sc===sc){ POSE_FREE.splice(i,1); L.key=null; return L; } }
   const c=document.createElement('canvas'); c.width=c.height=Math.max(2,Math.ceil(half*2*sc));
-  return {c,g:c.getContext('2d'),half,sc,key:null}; }
+  return {c,g:g2d(c),half,sc,key:null}; }
 function poseRelease(e){ if(e._pc){ if(POSE_FREE.length<160) POSE_FREE.push(e._pc); e._pc=null; } }
 function drawEnemyPosed(e,T,LOD){
   const sc=sprScale(), half=Math.ceil((e.r*2.9+18)/4)*4;
@@ -6715,7 +6715,7 @@ function drawEnemyPosed(e,T,LOD){
 const BL_CH=512, BL_SC=.65;
 function blChunk(cx,cy){ const k=cx+','+cy; let c=W.blood[k];
   if(!c){ const cv=document.createElement('canvas'); cv.width=cv.height=Math.ceil(BL_CH*BL_SC);
-    const g=cv.getContext('2d'); g.setTransform(BL_SC,0,0,BL_SC,-cx*BL_CH*BL_SC,-cy*BL_CH*BL_SC);
+    const g=g2d(cv); g.setTransform(BL_SC,0,0,BL_SC,-cx*BL_CH*BL_SC,-cy*BL_CH*BL_SC);
     c=W.blood[k]={c:cv,g,cx,cy,seen:W.t}; }
   return c; }
 /* рисует в каждый кусок, который задевает круг (x,y,rad); рисунок — в мировых координатах */
@@ -6753,7 +6753,7 @@ const DRY_T={hulk:1,armored:1,juggernaut:1,siege:1};
 /* сморщивает готовый рисунок трупа: полосы со сдвигом и сжатием (складки), бурая подсушка, морщины, обкусанный край */
 function shrivel(src,px,half,e,rnd){
   if(!DRY_TMP||DRY_TMP.width<px){ DRY_TMP=document.createElement('canvas'); DRY_TMP.width=DRY_TMP.height=Math.max(px,64); }
-  const g=DRY_TMP.getContext('2d'), sc=px/(half*2); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,DRY_TMP.width,DRY_TMP.height);
+  const g=g2d(DRY_TMP), sc=px/(half*2); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,DRY_TMP.width,DRY_TMP.height);
   const N=12, sh=px/N, ph=rnd()*TAU;
   for(let k=0;k<N;k++){ const y0=k*sh, w=Math.sin(k*1.7+ph), sx=.74+.07*Math.sin(k*2.3+ph*1.3), cx=px/2+w*e.r*.07*sc;
     const dy=px/2+(y0+sh/2-px/2)*.8;                       /* туша осела: ниже на 20% */
@@ -6775,7 +6775,7 @@ function bakeCorpse(e){ if(!W.bake||!OPT.blood)return;
   blPaint(e.x,e.y,e.r*4.2,()=>drawSpatter(e.x,e.y,ang,col,e.r*((e.boss||e.elite)?1.3:1.05),true));
   const half=Math.ceil(e.r*2.6+12), sc=1.4, px=half*2*sc;
   if(!DEAD_TMP||DEAD_TMP.width<px){ DEAD_TMP=document.createElement('canvas'); DEAD_TMP.width=DEAD_TMP.height=Math.max(px,64); }
-  const g=DEAD_TMP.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,DEAD_TMP.width,DEAD_TMP.height); g.setTransform(sc,0,0,sc,0,0);
+  const g=g2d(DEAD_TMP); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,DEAD_TMP.width,DEAD_TMP.height); g.setTransform(sc,0,0,sc,0,0);
   const e2={...e,x:half,y:half,flash:0,hop:0,walk:(e.ph||0)*5,infected:0,pois:null,armSh:0,rage:0,slow:0,dead:false,
     hp:1,hpMax:1,eye:mix(e.dark||'#3a3530','#000000',.35),
     elite:false,boss:false,ename:null,shT:0,creep:0,sq:null,burnT:0,fheat:0};   /* мёртвый: без полоски здоровья, блеска глаз, ауры элиты, подписи и щита босса */
@@ -7759,8 +7759,8 @@ function drawMinimap(p){
   if(S2<58) return;                 /* места нет — лучше без карты, чем поверх целей */
   const x0=VW-S2-M, y0=VH-S2-M-BOT;
   const k=S2/W.size, mx=v=>x0+v*k, my=v=>y0+v*k;
-  /* карта — картинка, обновляется 10 раз в секунду: на ней до двухсот точек */
-  lowFps(HUDR.mm||(HUDR.mm={}),10,S2+'|'+Math.round(x0)+'|'+Math.round(y0),x0-8,y0-8,S2+16,S2+16,()=>{
+  /* карта — картинка, обновляется 2 раза в секунду (раз в 0,5 с): на ней до двухсот точек */
+  lowFps(HUDR.mm||(HUDR.mm={}),2,S2+'|'+Math.round(x0)+'|'+Math.round(y0),x0-8,y0-8,S2+16,S2+16,()=>{
   ctx.globalAlpha=.62; ctx.fillStyle='rgba(14,16,20,.9)';
   ctx.beginPath(); ctx.roundRect(x0-6,y0-6,S2+12,S2+12,14); ctx.fill();
   ctx.globalAlpha=.16; ctx.strokeStyle='#dde2ea'; ctx.lineWidth=1;
@@ -8001,11 +8001,16 @@ function logErr(tag,e){
   else if(ERRN===4) console.error(tt('[DUSTLINE] дальнейшие сообщения подавлены','[DUSTLINE] further messages suppressed'));
 }
 let lastDraw=0, HK_TICK=0;
+/* Проба для слабых видеокарт: где рисовать картинки тварей, крови и миникарты.
+   0 — видеокарта (как было), 1 — процессор (willReadFrequently: холст в обычной памяти, в видеокарту уходит готовая картинка),
+   2 — тварей вообще без картинок-кэшей, рисуем напрямую. Переключается кнопкой «ТВАРИ» в паузе. */
+function g2d(c){ return OPT.rmode===1?(c.getContext('2d',{willReadFrequently:true})||c.getContext('2d')):c.getContext('2d'); }
+function rmodeReset(){ POSE_FREE.length=0; if(W){ for(const e of W.enemies) e._pc=null; } if(HUDR.mm) HUDR.mm._lf=null; DEAD_TMP=null; DRY_TMP=null; }
 /* Замер для проверки на устройстве: кадры в секунду и сколько миллисекунд уходит на логику, рисование и панель.
    Включается кнопкой «ЗАМЕР» в паузе. */
 const PERF={u:0,r:0,h:0};
 function drawPerf(){ const P=el('perfBox'); if(!P||P===NULLEL)return; PERF.k=(PERF.k||0)+1; if(PERF.k%10)return;
-  P.hidden=false; P.textContent=`${FPS} к/с · логика ${PERF.u.toFixed(1)} · рисование ${PERF.r.toFixed(1)} · панель ${PERF.h.toFixed(1)} мс · врагов ${W.enemies.length} · холст ${cv.width}×${cv.height} · поз/кадр ${Math.max(0,(TOUCH?10:24)-POSE_BUDGET)}`; }
+  P.hidden=false; P.textContent=`${['ВК','ЦП','ПР'][OPT.rmode||0]} · ${FPS} к/с · логика ${PERF.u.toFixed(1)} · рисование ${PERF.r.toFixed(1)} · панель ${PERF.h.toFixed(1)} мс · врагов ${W.enemies.length} · холст ${cv.width}×${cv.height} · поз/кадр ${Math.max(0,(TOUCH?10:24)-POSE_BUDGET)}`; }
 function frame(ts){ requestAnimationFrame(frame);
   /* В бою — столько кадров, сколько выбрано в паузе (60/40/30).
      На паузе, в окнах улучшений и в меню картинка стоит под панелью — раньше она
@@ -8760,6 +8765,7 @@ function renderPause(){
     (TOUCH?`<button class="tg on" data-k="stick">${U('optStick')}: ${[U('stickS'),U('stickM'),U('stickL')][OPT.stick]}</button>`:'')+
     (TOUCH?`<button class="tg ${OPT.aimAssist?'on':''}" data-k="aimAssist">${U('optAim')}</button>`:'')+
     `<button class="tg ${OPT.perf?'on':''}" data-k="perf">${tt('ЗАМЕР','PERF')}</button>`+
+    `<button class="tg on" data-k="rmode">${tt('ТВАРИ: ','CREATURES: ')+[tt('ВИДЕОКАРТА','GPU'),tt('ПРОЦЕССОР','CPU'),tt('НАПРЯМУЮ','DIRECT')][OPT.rmode||0]}</button>`+
     ((document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen)?`<button class="tg ${isFull()?'on':''}" data-k="full">${tt('ВО ВЕСЬ ЭКРАН','FULLSCREEN')}</button>`:'')+
     `<div class="fpsline">FPS ${FPS} · ${W.enemies.length} ${tt('целей','targets')}</div>`;
   el('pauseOpt').querySelectorAll('.tg').forEach(n=>n.addEventListener('click',()=>{
@@ -8767,6 +8773,7 @@ function renderPause(){
     if(k==='quality') OPT.quality={auto:'high',high:'low',low:'auto'}[OPT.quality];
     else if(k==='fps') OPT.fps=(OPT.fps||60)===60?30:60;   /* только 60 и 30 */
     else if(k==='stick'){ OPT.stick=(OPT.stick+1)%3; applyStick(); }
+    else if(k==='rmode'){ OPT.rmode=((OPT.rmode||0)+1)%3; rmodeReset(); }
     else if(k==='full'){ const on=!isFull(); OPT.full=on?1:0; goFull(on); }   /* выбор запоминается: выключил — на «Начать» больше не включаем */
     else OPT[k]=OPT[k]?0:1;
     saveOpt(); renderPause(); S.ready(); }));
