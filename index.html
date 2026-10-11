@@ -1266,7 +1266,7 @@ function newWorld(cls,mid,seed){
     p:{x:c,y:c,r:16,ang:0,hp:C.hp,hpMax:C.hp,sh:C.shield||0,shMax:C.shield||0,shT:99,speed:C.speed,dashCd:0,dashT:0,ifr:0,
        xp:0,level:1,xpNext:6,rerolls:2,ab1Cd:0,ab2Cd:0,ab1Max:1,ab2Max:1,energy:100,energyMax:100,
        vx:0,vy:0,lean:0,walk:0},
-    weapons:{},pas:{power:0,rate:0,speed:0,hull:0,magnet:0,regen:0,armor:0,area:0,cool:0,thorns:0},
+    weapons:{},pas:{power:0,rate:0,speed:0,hull:0,magnet:0,regen:0,armor:0,area:0,cool:0,thorns:0,eshield:0},
     enemies:[],allies:[],bullets:[],ebullets:[],shards:[],pools:[],builds:[],orbs:[],zones:[],helpers:[],ores:[],sites:[],rifts:[],
     obstacles:[],fences:[],chains:[],beams:[],mines:[],nests:[],crates:[],props:[],hold:null,beacon:null,minePts:[],
     pat:'stream',patT:0,patAng:0,safeAng:rr(0,TAU),safeArc:.72,safeShift:12,packType:null,ambush:null,picks:[],beat:0,tut:0,dmgOut:0,dmgIn:0,cores:[],tps:[],rcrates:[],carry:0,haulT:12,press:0,meds:[],surge:0,surgeT:8,spiders:[],relicDrops:[],bots:[],pods:[],walls:[],baseTurrets:[],aura:{dmg:1,rate:1,speed:1,def:1},auto:true,
@@ -1595,7 +1595,7 @@ const atkK=lv=>2-(Math.min(5,Math.max(1,lv))-1)/4;
 const mDmg=()=>(1+W.pas.power*.13)*(hasR('overload')?1.2:1)*AU('dmg')*(1+(W.dmgBonus||0))*(1+.18*((W.infD||0)+((W.infNew&&W.infNew.idmg)||0)));   /* ∞ Ярость */   /* ящики урона из «Выживания» */
 const mRate=()=>1/((1+W.pas.rate*.10)*(hasR('kinetic')?1.15:1)*AU('rate'));
 const mSpd=()=>(1+W.pas.speed*.08)*AU('speed');
-const mMag=()=>(1+W.pas.magnet*.36)*(hasR('symbiote')?1.25:1);
+const mMag=()=>(1+W.pas.magnet*.36)*(hasR('symbiote')?1.25:1)*mArea();   /* «Расширитель» увеличивает и радиус сбора */
 const mArea=()=>1+W.pas.area*.12;
 const mCool=()=>1/((1+W.pas.cool*.14)*(hasR('resonator')?1.22:1));
 
@@ -2101,10 +2101,11 @@ const PASSIVES={
  magnet:{name:['Магнитный сбор','Magnetic Pickup'],glyph:'◇',max:5,col:'#4db2ff',desc:l=>tt(`Радиус сбора трофеев +${l*36}%.`,`Pickup radius +${l*36}%.`)},
  regen:{name:['Полевой ремонт','Field Repair'],glyph:'✚',max:5,col:'#7fd98a',desc:l=>tt(`Восстановление ${(l*.6).toFixed(1)} единицы в секунду.`,`Repairs ${(l*.6).toFixed(1)} per second.`)},
  armor:{name:['Экранировка','Spaced Armour'],glyph:'◐',max:5,col:'#b8c6dc',desc:l=>tt(`Каждый удар по вам слабее на ${l*2} единицы.`,`Every hit on you is reduced by ${l*2}.`)},
- area:{name:['Расширитель','Field Extender'],glyph:'◯',max:5,col:'#c89bff',desc:l=>tt(`Радиус всех эффектов +${l*12}%.`,`All effect radii +${l*12}%.`)},
+ area:{name:['Расширитель','Field Extender'],glyph:'◯',max:5,col:'#c89bff',desc:l=>tt(`Радиус всех эффектов и сбора опыта +${l*12}%.`,`All effect radii and pickup radius +${l*12}%.`)},
  thorns:{name:['Шиповой контур','Thorn Ring'],glyph:'✵',max:5,col:'#ff7a9a',
   desc:l=>tt(`Отражает урон в ${Math.round(thornPct(l)*100)}% от общего здоровья Корпуса.`,
              `Reflects damage equal to ${Math.round(thornPct(l)*100)}% of total hull integrity.`)},
+ eshield:{name:['Энергощит','Energy Shield'],glyph:'⬡',max:5,col:'#7cc4ff',desc:l=>tt(`Энергощит +${l*10}. Принимает удар раньше здоровья, восстанавливается через 5 с без урона.`,`Energy shield +${l*10}. Takes hits before integrity, recharges after 5 s without damage.`)},
  cool:{name:['Охлаждение','Coolant'],glyph:'❄',max:5,col:'#8ce0f0',desc:l=>tt(`Способности готовятся на ${l*14}% быстрее.`,`Abilities recharge ${l*14}% faster.`)}
 };
 
@@ -2240,12 +2241,13 @@ const ABILITIES={
   use(l,dt){
     const p=W.p, cost=(30+l*5)*dt;
     /* ток питается от щита; когда тот пуст — от энергии */
-    if(p.shMax>0&&p.sh>0){ p.sh=Math.max(0,p.sh-cost*.55); p.shT=0; }
+    if(p.shMax>0&&p.sh>0){ p.sh=Math.max(0,p.sh-cost*.55); }
     else {
       if(p.energy<cost){ if(rng()<.05)toast(tt('ЭНЕРГИЯ ИСЧЕРПАНА','ENERGY DRAINED')); return; }
       p.energy-=cost;
     }
     p.enDelay=1.5;            /* пауза перед восполнением энергии после «Разряда» */
+    p.shT=Math.min(p.shT||0,3.5);   /* и щита: оба ждут 1,5 с после «Разряда» и дальше восполняются вместе (удар по герою по-прежнему даёт паузу 5 с) */
     /* первая цель — только впереди: ток идёт туда, куда смотрит корпус */
     let src=p, hit=[];
     for(let h=0;h<l;h++){
@@ -3487,7 +3489,7 @@ function update(dt){
   /* восстановление только после пяти секунд без урона */
   if(p.shHit){ p.shHit.t-=dt; if(p.shHit.t<=0)p.shHit=null; }
   if(p.shMax>0){ p.shT=(p.shT||0)+dt;
-    if(p.shT>5) p.sh=Math.min(p.shMax,p.sh+p.shMax*.22*dt); }
+    if(p.shT>5) p.sh=Math.min(p.shMax,p.sh+p.shMax*.11*dt); }   /* восполнение вдвое медленнее (было 22% в секунду) */
   for(const slot of ['ab1','ab2']){
     const A=W[slot], d=ABILITIES[A.id];
     if(!d)continue;
@@ -5015,7 +5017,8 @@ function applyChoice(c){
   if(c.med){}
   else if(c.ab){ W[c.id].lv++; }
   else if(c.w){ if(!W.weapons[c.id]){ const w={lv:1}; WEAPONS[c.id].init(w); W.weapons[c.id]=w; } else W.weapons[c.id].lv++; }
-  else { W.pas[c.id]++; if(c.id==='hull'){ const lv=W.pas.hull; W.p.hpMax=W.p.hpMax/(1+.01*(lv-1))*(1+.01*lv); } }   /* уровень модернизации = +1% общего здоровья, без ремонта; на 5-м ровно +5% */
+  else { W.pas[c.id]++; if(c.id==='eshield'){ W.p.shMax+=10; W.p.sh+=10; }   /* +10 к энергощиту за уровень (у Призмы — к её щиту, у остальных — новый щит) */
+    if(c.id==='hull'){ const lv=W.pas.hull; W.p.hpMax=W.p.hpMax/(1+.01*(lv-1))*(1+.01*lv); } }   /* уровень модернизации = +1% общего здоровья, без ремонта; на 5-м ровно +5% */
   pendingLevels--; el('lvlScreen').classList.remove('on');
   renderLoadout(); syncHud(); S.ready();
   if(pendingLevels>0)setTimeout(openLevelUp,140); else { paused=false; clearMouse(); } }
@@ -6319,7 +6322,8 @@ function drawOre(o){
   const O=ORES[o.kind], x=o.x, y=o.y, r=o.r, T=W.t, tier=oreTier(o), R=o.r0;
   const pu=.6+.4*Math.sin(T*1.8+o.ph);
   shadow(x,y+r*.35,r*.95,.4);
-  softGlow(x,y-R*.2,R*(1.6+tier*.35),O.glow+(.5*pu)+')',.45+tier*.07);
+  /* ореол пульсирует прозрачностью, а не цветом: раньше каждый кадр получался новый цвет — и для каждой залежи заново рисовалась картинка свечения (тормозило «Обкатку») */
+  softGlow(x,y-R*.2,R*(1.6+tier*.35),O.glow+'.5)',(.45+tier*.07)*pu);
   if(!o.spr||o.sprT!==tier||o.spr.sc!==sprScale()){ o.sprT=tier; o.spr=makeSprite(R*1.6+10,h=>drawOreBody(o,h,h,R,tier)); }
   drawSprite(o.spr,x,y);
   if(W.mining===o){
@@ -6397,8 +6401,8 @@ const XPS=[];
 /* Кристалл опыта: гранёный камень с бликом, рисуется один раз на ценность (синий/зелёный/золотой) */
 function xpSprite(t){ if(XPS[t]&&XPS[t].sc===sprScale())return XPS[t]; const R=[7.4,9.6,12.8][t];   /* ×1,6 */
   const [l,d,h,gl]=[['#7fd0ff','#2f7fd0','#dff4ff','rgba(90,180,255,.55)'],['#7dffa6','#1f9a52','#e6ffee','rgba(80,230,140,.55)'],['#ffd36a','#c27a12','#fff3c8','rgba(255,190,80,.6)']][t];
-  return XPS[t]=makeSprite(Math.ceil(R*2.7),c=>{ const g=ctx.createRadialGradient(c,c,0,c,c,R*2.6); g.addColorStop(0,gl); g.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c,c,R*2.6,0,TAU); ctx.fill();
+  return XPS[t]=makeSprite(Math.ceil(R*2.05),c=>{ const g=ctx.createRadialGradient(c,c,0,c,c,R*2); g.addColorStop(0,gl); g.addColorStop(1,'rgba(0,0,0,0)');   /* ореол ужат (2,6R → 2R): картинка вдвое меньше по площади, кристаллов на экране бывает 200+ */
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c,c,R*2,0,TAU); ctx.fill();
     const top=[c,c-R*1.25], L=[c-R*.85,c-R*.15], Rr=[c+R*.85,c-R*.15], bot=[c,c+R*1.25], ml=[c-R*.35,c-R*.15], mr=[c+R*.35,c-R*.15];
     const poly=(pts,f)=>{ ctx.fillStyle=f; ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let k=1;k<pts.length;k++) ctx.lineTo(pts[k][0],pts[k][1]); ctx.closePath(); ctx.fill(); };
     poly([top,L,bot],d); poly([top,Rr,bot],l); poly([top,ml,mr],h); poly([L,ml,bot],l); poly([mr,Rr,bot],d);
@@ -7125,6 +7129,7 @@ function drawBuild(b,T){
 }
 
 /* ---------- враги как существа ---------- */
+const GV_COL={};
 function drawEnemy(e,T,LOD,ally){
   const x=e.x,y=e.y,r=e.r,ph=e.ph||0,w=(e.walk||0);
   const flash=e.flash>0;
@@ -7143,16 +7148,20 @@ function drawEnemy(e,T,LOD,ally){
   if(gv){ const fl=Math.min(4,W.floor), G=e.form==='crawler'
       ?{2:['#9fd8ad','#2f5a3a','#d6ff7a'],3:['#e2bc5c','#5e4314','#ffe08a'],4:['#e0605e','#5a1616','#ffd24a']}[fl]
       :{2:['#8fd0ee','#24506a','#e8fbff'],3:['#ff9a4a','#6a3312','#fff0b0'],4:['#ff4a6a','#5e0f1e','#ffe3a0']}[fl];
-    const [rc,dc,ec]=G, H=hex2(flash?(e.flashCol||'#ffffff'):rc), ga=a=>'rgba('+H[0]+','+H[1]+','+H[2]+','+a+')', D=hex2(dc), da=a=>'rgba('+D[0]+','+D[1]+','+D[2]+','+a+')';
+    const [rc,dc,ec]=G, ck=(flash?(e.flashCol||'#ffffff'):rc)+dc, CC=GV_COL[ck]||(GV_COL[ck]={H:hex2(flash?(e.flashCol||'#ffffff'):rc),D:hex2(dc)}), H=CC.H, D=CC.D;
+    /* строки цвета собираем один раз на цвет и прозрачность, а не на каждую тварь в каждом кадре */
+    const ga=a=>CC['g'+a]||(CC['g'+a]='rgba('+H[0]+','+H[1]+','+H[2]+','+a+')'), da=a=>CC['d'+a]||(CC['d'+a]='rgba('+D[0]+','+D[1]+','+D[2]+','+a+')');
     if(e.form==='crawler'){   /* стеклянный клещ */
       if(legs){ ctx.strokeStyle=ga(.75); ctx.lineWidth=2.4; ctx.lineCap='round';
+        ctx.beginPath();   /* все лапы одним контуром — одна отрисовка вместо шести */
         for(let i=0;i<6;i++){ const sd=i<3?-1:1, k=i%3, a=dir+sd*(.8+k*.55)+Math.sin(w*4+i)*.22;
-          ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(Math.cos(a)*r*.95,Math.sin(a)*r*.95-2,Math.cos(a)*r*1.45,Math.sin(a)*r*1.35+Math.abs(Math.sin(w*4+i))*2); ctx.stroke(); }
+          ctx.moveTo(0,0); ctx.quadraticCurveTo(Math.cos(a)*r*.95,Math.sin(a)*r*.95-2,Math.cos(a)*r*1.45,Math.sin(a)*r*1.35+Math.abs(Math.sin(w*4+i))*2); }
+        ctx.stroke();
         ctx.lineCap='butt'; }
       ctx.fillStyle=ga(.42); blobPath(0,0,r*1.02,T,ph,.05); ctx.fill();
       ctx.strokeStyle=ga(.95); ctx.lineWidth=1.6; ctx.stroke();
       ctx.strokeStyle=da(.7); ctx.lineWidth=1.1;
-      for(let i=0;i<5;i++){ const a=i*1.26+.3+ph; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(Math.cos(a+.4)*r*.4,Math.sin(a+.4)*r*.4,Math.cos(a)*r*.82,Math.sin(a)*r*.82); ctx.stroke(); }
+      ctx.beginPath(); for(let i=0;i<3;i++){ const a=i*2.1+.3+ph; ctx.moveTo(0,0); ctx.quadraticCurveTo(Math.cos(a+.4)*r*.4,Math.sin(a+.4)*r*.4,Math.cos(a)*r*.82,Math.sin(a)*r*.82); } ctx.stroke();
       const cx0=-Math.cos(dir)*r*.1, cy0=-Math.sin(dir)*r*.1;
       ctx.fillStyle=da(.92); circle(cx0,cy0,r*.36); ctx.fill();
       ctx.fillStyle=ec; ctx.globalAlpha*=.45; circle(cx0,cy0,r*.18); ctx.fill(); ctx.globalAlpha/=.45;
@@ -7162,12 +7171,14 @@ function drawEnemy(e,T,LOD,ally){
       ctx.rotate(dir);
       if(legs){ ctx.strokeStyle=ga(.8); ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.lineJoin='round';
         const row=Math.sin(w*5)*.22;
+        ctx.beginPath();   /* все шесть лап одним контуром */
         for(const sd of [-1,1]){
-          ctx.beginPath(); ctx.moveTo(r*.5,sd*r*.15); ctx.lineTo(r*.95,sd*r*.55); ctx.lineTo(r*1.35,sd*r*.42); ctx.stroke();          /* передние — короткие, к морде */
+          ctx.moveTo(r*.5,sd*r*.15); ctx.lineTo(r*.95,sd*r*.55); ctx.lineTo(r*1.35,sd*r*.42);          /* передние — короткие, к морде */
           const a1=sd*(1.75+row), a2=sd*(2.55+row*.6);
-          ctx.beginPath(); ctx.moveTo(r*.15,sd*r*.2); ctx.lineTo(r*.15+Math.cos(a1)*r*1.05,Math.sin(a1)*r*1.05); ctx.lineTo(r*.15+Math.cos(a2)*r*2.2,Math.sin(a2)*r*2.0); ctx.stroke();   /* средние — вёсла */
+          ctx.moveTo(r*.15,sd*r*.2); ctx.lineTo(r*.15+Math.cos(a1)*r*1.05,Math.sin(a1)*r*1.05); ctx.lineTo(r*.15+Math.cos(a2)*r*2.2,Math.sin(a2)*r*2.0);   /* средние — вёсла */
           const b1=sd*(2.15-row*.5), b2=sd*(2.85-row*.3);
-          ctx.beginPath(); ctx.moveTo(-r*.15,sd*r*.18); ctx.lineTo(-r*.15+Math.cos(b1)*r*.95,Math.sin(b1)*r*.95); ctx.lineTo(-r*.15+Math.cos(b2)*r*2.1,Math.sin(b2)*r*1.7); ctx.stroke(); }   /* задние — тянутся назад */
+          ctx.moveTo(-r*.15,sd*r*.18); ctx.lineTo(-r*.15+Math.cos(b1)*r*.95,Math.sin(b1)*r*.95); ctx.lineTo(-r*.15+Math.cos(b2)*r*2.1,Math.sin(b2)*r*1.7); }   /* задние — тянутся назад */
+        ctx.stroke();
         ctx.lineCap='butt'; ctx.lineJoin='miter'; }
       /* брюшко: сужается к хвосту */
       ctx.fillStyle=ga(.62); ctx.beginPath(); ctx.moveTo(r*.25,-r*.34); ctx.quadraticCurveTo(-r*.6,-r*.42,-r*1.45,0); ctx.quadraticCurveTo(-r*.6,r*.42,r*.25,r*.34); ctx.closePath(); ctx.fill();
